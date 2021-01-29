@@ -8,7 +8,7 @@ GLIF_CONSTRUCT_EXTENSION  = 'info.kwarc.mmt.glf.GlfConstructServer'
 ELPI_GENERATION_EXTENSION = 'info.kwarc.mmt.glf.ElpiGenerationServer'
 
 class MMTServer(object):
-    def __init__(self, mmt_jar):
+    def __init__(self, mmt_jar: str):
         self.port = utils.find_free_port()
         extensions = [GLIF_BUILD_EXTENSION, GLIF_CONSTRUCT_EXTENSION, ELPI_GENERATION_EXTENSION]
         cmds = ['extension ' + e for e in extensions] + ['server on ' + str(self.port)]
@@ -17,8 +17,8 @@ class MMTServer(object):
         self.mmt = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=pipe[1], stderr=pipe[1], text=True)
         self.infile = os.fdopen(pipe[0])
         self.outfd = pipe[1]
-        self.mmtlogstart = []
-        self.mmtlogtail = []
+        self.mmtlogstart: list[str] = []
+        self.mmtlogtail: list[str] = []
 
         # wait until server started
         for line in self.infile:
@@ -49,6 +49,30 @@ class MMTServer(object):
 
 
 class MMTInterface(object):
-    def __init__(self, mmtjar, mathhubdir):
-        pass
+    def __init__(self, mmtjar: str, mathhubdir: str):
+        self.server: MMTServer = MMTServer(mmtjar)
+        self.mhdir: str = mathhubdir
+        self.archives: dict[str, str] = self.__findArchives(self.mhdir)
+
+    def __findArchives(self, root: str):
+        archives = {}
+        for p in os.listdir(root):
+            path = os.path.join(root, p)
+            if not os.path.isdir(path):
+                continue
+            mf = os.path.join(path, 'META-INF', 'MANIFEST.MF')
+            if os.path.isfile(mf):
+                with open(mf, 'r') as fp:
+                    k = None
+                    for line in fp:
+                        if line.startswith('id: '):
+                            k = line.strip().split(' ')[1]
+                            break
+                    if k:
+                        archives[k] = path
+                continue
+            archives.update(self.__findArchives(path))  # recurse
+        return archives
+
+
 

@@ -36,7 +36,7 @@ def find_mathhub_dir(mmtjar : str) -> Optional[tuple[str, str]]:
             for line in f:
                 if not line.startswith('mathpath '):
                     continue
-                path = line.split(' ')[1]
+                path = line.strip().split(' ')[1]
                 if os.path.isdir(path):
                     return (path, 'Inferred from mmtrc mathpath')
 
