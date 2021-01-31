@@ -20,18 +20,25 @@ class TestMMT(unittest.TestCase):
         if os.path.isdir(tmp):
             shutil.rmtree(tmp)
         cls.mh = mmt.MathHub(mhdir.value)
-        cls.mmt = mmt.MMTInterface(mmtjar.value, cls.mh)
         r = cls.mh.makeArchive(TEST_ARCHIVE)
         assert r.success
         cls.testarchivedir = r.value
+        cls.mmt = mmt.MMTInterface(mmtjar.value, cls.mh)
 
 
     @classmethod
     def tearDownClass(cls):
         cls.mmt.server.do_shutdown()
 
-    def test_stub(self):
-        assert 1 == 1
+    def test_simple_build(self):
+        self.mh.makeSubdir(TEST_ARCHIVE, 'testSimpleBuild')
+        with open(self.mh.getFilePath(TEST_ARCHIVE, 'testSimpleBuild', 'Test.gf'), 'w') as fp:
+            fp.write('abstract Test = { cat A; fun f : A -> A; x : A; }')
+        r1 = self.mmt.buildFile(TEST_ARCHIVE, 'testSimpleBuild', 'Test.gf')
+        print(r1.logs)
+        self.assertTrue(r1.success)
+        r2 = self.mmt.buildFile(TEST_ARCHIVE, 'testSimpleBuild', 'NonExistent.gf')
+        self.assertFalse(r2.success)
 
 
 if __name__ == '__main__':

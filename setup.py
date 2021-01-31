@@ -8,7 +8,10 @@ setup(
     author='Jan Frederik Schaefer',
     packages=['glif'],
     # license='BSD 2-clause',  # TODO: License (also in classifiers)
-    install_requires=[],
+    install_requires=[
+        'setuptools>=46',
+        'requests>=2.23',
+    ],
     classifiers=[       # https://pypi.org/pypi?%3Aaction=list_classifiers
         'Development Status :: 1 - Planning',
         'Programming Language :: Python :: 3',
