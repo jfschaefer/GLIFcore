@@ -160,4 +160,21 @@ class MMTInterface(object):
             return Result(False, None, '\n'.join(response['errors']))
         return Result(False, None, result.logs)
 
+    def construct(self, ASTs: list[str], archive: str, subdir: Optional[str], view: str,
+                  toElpi: bool = False, deltaExpand: bool = False) -> Result[list[str]]:
+        result = self.server.post_request('glf-construct',
+                json = {
+                    'semanticsView': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{view}',
+                    'ASTs': ASTs,
+                    'toElpi': toElpi,
+                    'deltaExpansion': deltaExpand,
+                    'version': 2,
+                })
+
+        if result.success:   # request was successful
+            response: Any = result.value
+            if response['isSuccessful']:
+                return Result(True, response['result'], '\n'.join(response['errors']))
+            return Result(False, None, '\n'.join(response['errors']))
+        return Result(False, None, result.logs)
 

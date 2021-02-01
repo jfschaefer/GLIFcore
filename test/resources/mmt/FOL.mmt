@@ -1,0 +1,13 @@
+namespace http://mathhub.info/tmpGLIF/test/mini ❚
+
+theory FOL : ur:?LF =
+    prop : type ❘ # o ❙
+    not : o ⟶ o ❘ # ¬ 1 prec 70 ❙
+    and : o ⟶ o ⟶ o ❘ # 1 ∧ 2 prec 60 ❙
+    or : o ⟶ o ⟶ o ❘ # 1 ∨ 2 prec 50 ❘ = [a,b] ¬(¬a ∧ ¬b) ❙
+    impl : o ⟶ o ⟶ o ❘ # 1 ⇒ 2 prec 40 ❘ = [a,b] ¬a∨b ❙
+
+    ind : type ❘ # ι ❙
+    forall : (ι ⟶ o) ⟶ o ❘ # ∀ 1 ❙
+    exists : (ι ⟶ o) ⟶ o ❘ # ∃ 1 ❘ = [p] ¬∀[x]¬(p x) ❙
+❚
