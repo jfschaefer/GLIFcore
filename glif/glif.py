@@ -1,8 +1,8 @@
 from typing import Optional, Callable
-from utils import Result
+from glif.utils import Result
 from glif.parsing import *
 from distutils.spawn import find_executable
-import gf
+from glif import gf
 
 
 class Item(object):
@@ -27,11 +27,11 @@ class Items(object):
         self.items : list[Item] = items
         self.errors : list[str] = []
 
-    def merge(self, items: Items):
+    def merge(self, items: 'Items'):
         self.items = self.items + items.items
         self.errors = self.errors + items.errors
 
-    def withErrors(self, errors: list[str]) -> Items:
+    def withErrors(self, errors: list[str]) -> 'Items':
         self.errors = self.errors + errors
         return self
 
@@ -41,12 +41,12 @@ class Command(object):
     is_executable: bool = False
     is_applicable: bool = False
 
-    def execute(self, glif: Glif) -> Items:
+    def execute(self, glif: 'Glif') -> Items:
         ''' If no input is/can provided '''
         assert self.is_executable
         return Items([])
 
-    def apply(self, glif: Glif, items: Items) -> Items:
+    def apply(self, glif: 'Glif', items: Items) -> Items:
         ''' If input is provided (`items`) '''
         assert self.is_applicable
         newItems = Items([])
@@ -55,7 +55,7 @@ class Command(object):
             newItems.merge(self._applyItem(glif, item))
         return newItems
 
-    def _applyItem(self, glif: Glif, item: Item) -> Items:
+    def _applyItem(self, glif: 'Glif', item: Item) -> Items:
         raise NotImplementedError()
 
 
@@ -64,7 +64,7 @@ class CommandType(object):
     def __init__(self, names: list[str]):
         self.names: list[str] = names         # Command names, e.g. ['view_tree', 'vt']
 
-    def fromString(self, string: str) -> Result[(Command, str)]:
+    def fromString(self, string: str) -> Result[tuple[Command, str]]:
         ''' returns (concrete command, remaining string (in case of pipes)). '''
         raise NotImplementedError()
 
@@ -84,9 +84,7 @@ class GfCommand(object):
         self.shellCommand = shellCommand
         self.getInput = getInput
         self.getOutput = getOutput
-        if self.getInput:
-            self.is_executable = False
-        else:
+        if not self.getInput:
             self.is_applicable = False
 
     def execute(self, glif):
@@ -102,6 +100,7 @@ class GfCommand(object):
             return self.getOutput(item, s)
         else:
             return self.getOutput(item, s).withErrors(inp.logs)
+
             
 class GfCommandType(object):
     ''' for standard GF commands '''
@@ -112,13 +111,53 @@ class GfCommandType(object):
         self.getInput = getInput      # obtains command input from item (None if no input is accepted)
         self.getOutput = getOutput    # obtains new items based on shell output
 
-    def fromString(self, string: str) -> Result[(Command, str)]:
-        command, rest = parseCommandName(string)
+    def fromString(self, string: str) -> Result[tuple[GfCommand, str]]:
+        string = string.strip()
+        command, rest = parseCommandName(string.strip())
         assert command in self.names
-        # remove leading arguments from rest to command
-        i = 0
+
+        # skip over args
         while True:
-            if rest[0] == ' ': continue
+            rest = rest.strip()
+            if not rest:
+                break
+            if rest[0] == '-':
+                r = parseCommandArg(rest)
+                if not r.success:
+                    return Result(False, logs=r.logs)
+                assert r.value
+                arg, rest = r.value
+            else:
+                break
+
+        rest = rest.strip()
+
+        if not rest:
+            return Result(True, (GfCommand(string, self.getInput, self.getOutput), ''))
+
+        if rest[0] == '|':
+            return Result(True, (GfCommand(string[:-len(rest)], self.getInput, self.getOutput), rest[1:]))
+        
+        # Find next pipe
+        i = 0
+        while i < len(rest):
+            if rest[i] == '|':
+                # Done :)
+                return Result(True, (GfCommand(string[:-len(rest[i-1:])], None, self.getOutput), rest[i+1:]))
+            elif rest[i] == '"':
+                rr = parseString(rest[i:])
+                if not rr.success:
+                    return Result(False, None, logs=rr.logs)
+                assert rr.value
+                rest = rr.value[1]
+                i = 0
+            else:
+                i += 1
+
+        return Result(True, (GfCommand(string, None, self.getOutput), ''))
+
+
+
 
 
 
