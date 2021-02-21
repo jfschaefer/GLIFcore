@@ -21,6 +21,7 @@ from glif.utils import Result
 
 # Command parsing
 
+
 def parseCommandName(s: str) -> tuple[str, str]:
     s = s.strip()
     assert s
@@ -31,13 +32,17 @@ def parseCommandName(s: str) -> tuple[str, str]:
         return (s, '')
 
 class CommandArgument(object):
-    def __init__(self, key: str, value: str = '', stringvalue: str = ''):
+    def __init__(self, key: str, value: str = ''):
         self.key = key
         self.value = value
-        self.stringvalue = stringvalue
 
     def __eq__(self, r):
-        return self.key == r.key and self.value == r.value and self.stringvalue == r.stringvalue
+        return self.key == r.key and self.value == r.value
+    
+    def __str__(self):
+        if self.value:
+            return f'-{self.key}={argformat(self.value)}'
+        return f'-{self.key}'
 
 def parseCommandArg(s0: str) -> Result[tuple[CommandArgument, str]]:
     s = s0.strip()
@@ -64,13 +69,13 @@ def parseCommandArg(s0: str) -> Result[tuple[CommandArgument, str]]:
         if res.success:
             assert res.value
             argval, s = res.value
-            return Result(success = True, value=(CommandArgument(argname, stringvalue=argval), s))
+            return Result(success = True, value=(CommandArgument(argname, argval), s))
         else:
             return Result(success = False, logs=res.logs)
         # r = parseString(s)
     elif s[0].isidentifier() or s[0].isalnum():
         argval, s = parseIdentifier(s, canbenum=True)
-        return Result(success = True, value=(CommandArgument(argname, value=argval), s))
+        return Result(success = True, value=(CommandArgument(argname, argval), s))
     else:
         return Result(success = False, logs=f'Unexpected argument value in "{s0}"')
 
@@ -95,10 +100,10 @@ def parseString(s: str) -> Result[tuple[str, str]]:
             res += s[i]
         i += 1
     return Result(False, logs = f'String not closed: "{s}"')
-            
+
 def parseIdentifier(s: str, canbenum: bool = False) -> tuple[str, str]:
     assert s
-    assert s[0].isidentifier() or (canbenum and s[0].isalnum)
+    assert s[0].isidentifier() or (canbenum and s[0].isalnum) or s[0] == '?'   # ? for user-defined macros
     identifier = s[0]
     i = 1
     while i < len(s):
@@ -109,4 +114,78 @@ def parseIdentifier(s: str, canbenum: bool = False) -> tuple[str, str]:
             return (identifier, s[i:])
     return (identifier, '')
 
+class BasicCommand(object):
+    def __init__(self, name: str, args: list[CommandArgument], mainargs: list[str]):
+        self.name = name
+        self.args = args
+        self.mainargs = mainargs
+
+    def gfFormat(self, mainarg: Optional[str], mainargIsStr: bool = False):
+        head = f'{self.name} {" ".join([str(a) for a in self.args])}'
+        if mainarg:
+            return f'{head} {strformat(mainarg) if mainargIsStr else mainarg}'
+        else:
+            return head
+
+def argformat(s : str) -> str:
+    if s.isidentifier() or s.isalnum():
+        return s
+    return strformat(s)
+
+def strformat(s : str) -> str:
+    return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+def parseBasicCommand(string: str) -> Result[tuple[BasicCommand, str]]:
+    string = string.strip()
+    commandname, rest = parseCommandName(string.strip())
+    command = BasicCommand(commandname, [], [])
+
+    # Args
+    while True:
+        rest = rest.strip()
+        if not rest:
+            break
+        if rest[0] == '-':
+            r = parseCommandArg(rest)
+            if not r.success:
+                return Result(False, logs=r.logs)
+            assert r.value
+            arg, rest = r.value
+            command.args.append(arg)
+        else:
+            break
+
+    rest = rest.strip()
+
+    if not rest:
+        return Result(True, (command, ''))
+
+    if rest[0] == '|':
+        return Result(True, (command, rest[1:]))
+    
+    # Find next pipe
+    mainarg = ''    # Record main argument
+    i = 0
+    while i < len(rest):
+        if rest[i] == '|':
+            # Done :)
+            mainarg = mainarg.strip()
+            if mainarg:
+                command.mainargs.append(mainarg)
+            return Result(True, (command, rest[i+1:]))
+        elif rest[i] == '"':
+            rr = parseString(rest[i:])
+            if not rr.success:
+                return Result(False, None, logs=rr.logs)
+            assert rr.value
+            rest = rr.value[1]
+            command.mainargs.append(rr.value[0])
+            i = 0
+        else:
+            i += 1
+            mainarg += rest[i-1]
+    mainarg = mainarg.strip()
+    if mainarg:
+        command.mainargs.append(mainarg)
+    return Result(True, (command, ''))
 
