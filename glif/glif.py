@@ -3,6 +3,7 @@ from glif.utils import Result
 from distutils.spawn import find_executable
 from glif import gf
 from glif import commands as cmd
+from glif import parsing
 from glif import mmt
 from glif import utils
 import os
@@ -20,6 +21,7 @@ class Glif(object):
         # MMT and MathHub
         self.mmtjar: Optional[str] = None
         self.mh: Optional[mmt.MathHub] = None
+        self._mmt: Optional[mmt.MMTInterface] = None
         self._findMMTlogs: list[str] = []
         self._initMMTLocation()
 
@@ -55,10 +57,19 @@ class Glif(object):
         self._findMMTlogs.append('Location: ' + mhdir.value)
         self.mh = mmt.MathHub(mhdir.value)
 
+    def getMMT(self) -> Result[mmt.MMTInterface]:
+        if self._mmt:
+            return Result(True, self._mmt)
+        if not self.mmtjar and self.mh:
+            return Result(False, logs = '\n'.join(self._findMMTlogs))
+        assert self.mmtjar
+        assert self.mh
+        self._mmt = mmt.MMTInterface(self.mmtjar, self.mh)
+        return Result(True, self._mmt)
 
     def _loadInitialCommands(self):
         # load GF commands
-        for ct in cmd.GF_COMMAND_TYPES:
+        for ct in cmd.GF_COMMAND_TYPES + cmd.GLIF_COMMAND_TYPES:
             for name in ct.names:
                 self._commands[name] = ct
 
@@ -88,6 +99,50 @@ class Glif(object):
             return Result(False, logs=f'No command given')
 
         return Result(True, value=items)
+
+    def importGFfile(self, filename: str) -> Result[None]:
+        success = True
+        logs = []
+        gfresult = self.getGfShell()
+        if gfresult.success:
+            gf = gfresult.value
+            assert gf
+            r = gf.handle_command(f'import {filename}').strip()
+            if r: # Failure
+                success = False
+                logs.append(f'GF import failed:\n{parsing.indent(r)}')
+        else:
+            success = False
+            logs.append(f'GF import failed:\n{parsing.indent(gfresult.logs)}')
+
+        mmtresult = self.getMMT()
+        if mmtresult.success:
+            mmt = mmtresult.value
+            assert mmt
+            assert self._archive
+            rr = mmt.buildFile(self._archive, self._subdir, filename)
+            if not rr.success:
+                logs.append(f'MMT import failed:\n{parsing.indent(rr.logs)}')
+                success = False
+        else:
+            success = False
+            logs.append(f'MMT import failed:\n{parsing.indent(mmtresult.logs)}')
+
+        return Result(success, logs='\n'.join(logs))
+
+    def importMMTfile(self, filename: str) -> Result[None]:
+        mmtresult = self.getMMT()
+        if mmtresult.success:
+            mmt = mmtresult.value
+            assert mmt
+            assert self._archive
+            rr = mmt.buildFile(self._archive, self._subdir, filename)
+            if not rr.success:
+                return Result(False, logs=rr.logs)
+        else:
+            return Result(False, logs=f'MMT import failed:\n{parsing.indent(mmtresult.logs)}')
+        return Result(True)
+
 
     def getGfShell(self) -> Result[gf.GFShellRaw]:
         if not self._gfshell and self._gfshellFailedLogs is None:

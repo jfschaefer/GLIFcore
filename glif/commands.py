@@ -12,7 +12,7 @@ class Repr(Enum):
     SENTENCE       = 'current sentence'
     AST            = 'abstract syntax tree'
     LOGIC_PLAIN    = 'logical expression (plain)'   # MMT without notations
-    LOGIC_STANDARD = 'logical expression'          # MMT with notations
+    LOGIC_STANDARD = 'logical expression'           # MMT with notations
     LOGIC_ELPI     = 'logical expression (elpi)'    # MMT with notations
 
 
@@ -127,6 +127,8 @@ class CommandType(object):
         return ''
 
 
+# GF COMMANDS
+
 class GfCommand(Command):
     ''' for standard GF commands '''
     def __init__(self, bc : BasicCommand, inrepr: Repr, outrepr: Repr):
@@ -174,15 +176,14 @@ class GfCommand(Command):
         return items
 
 
-
-class GfCommandType(object):
+class GfCommandType(CommandType):
     ''' for standard GF commands '''
     def __init__(self, names: list[str], inrepr : Repr, outrepr : Repr):
-        self.names = names
+        CommandType.__init__(self, names)
         self.inrepr = inrepr
         self.outrepr = outrepr
 
-    def fromString(self, string: str) -> Result[tuple[GfCommand, str]]:
+    def fromString(self, string: str) -> Result[tuple[Command, str]]:
         string = string.strip()
         cmdresult = parseBasicCommand(string)
         if not cmdresult.success:
@@ -198,3 +199,89 @@ GF_COMMAND_TYPES: list[GfCommandType] = [
         GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST),
         GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
 ]
+
+
+# GLIF COMMANDS
+
+class NonApplicableCommand(Command):
+    def __init__(self, f: Callable[['glif.Glif'], Result[list[str]]], outrepr: Repr = Repr.DEFAULT):
+        self.f = f
+        self.outrepr = outrepr
+
+    def execute(self, glif):
+        r = self.f(glif)
+        assert r.value is not None
+        items = Items.fromVals(self.outrepr, r.value)
+        if not r.success and r.logs:
+            return items.withErrors([r.logs])
+        else:
+            return items
+
+class NonApplicableCommandType(CommandType):
+    def __init__(self, names: list[str],
+            fgen: Callable[[BasicCommand], Callable[['glif.Glif'], Result[list[str]]]],
+            outrepr : Repr = Repr.DEFAULT):
+        CommandType.__init__(self, names)
+        self.fgen = fgen
+        self.outrepr = outrepr
+
+    def fromString(self, string: str) -> Result[tuple[Command, str]]:
+        string = string.strip()
+        cmdresult = parseBasicCommand(string)
+        if not cmdresult.success:
+            return Result(False, logs=cmdresult.logs)
+        assert cmdresult.value
+        cmd, rest = cmdresult.value
+        assert cmd.name in self.names
+        return Result(True, value=(NonApplicableCommand(self.fgen(cmd), self.outrepr), rest))
+
+
+def wrongCommandPatternResponse(cmd: BasicCommand,
+        allowedArgs: Optional[list[str]] = None,
+        minMainargs: int = 0,
+        maxMainargs: Optional[int] = None) -> Optional[Result[list[str]]]:
+    ''' returns a failed result in case cmd doesn't satisfy basic requirements '''
+    if allowedArgs is not None:
+        for arg in cmd.args:
+            if arg.key not in allowedArgs:
+                return Result(False, [], f'Illegal argument "{arg.key}" for command "{cmd.name}"')
+
+    if len(cmd.mainargs) < minMainargs:
+        return Result(False, [], f'Command "{cmd.name}" requires at least {minMainargs} commands (found {len(cmd.mainargs)})')
+
+    if maxMainargs is not None and len(cmd.mainargs) > maxMainargs:
+        return Result(False, [], f'Command "{cmd.name}" can have at most {maxMainargs} commands (found {len(cmd.mainargs)})')
+
+    return None
+
+def importHelper(cmd: BasicCommand):
+    def _importHelper(glif):
+        pr = wrongCommandPatternResponse(cmd, allowedArgs = [], minMainargs = 1)
+        if pr:
+            return pr
+        logs = []
+        errs = []
+        for ma in cmd.mainargs:
+            if ma.endswith('.gf'):
+                r = glif.importGFfile(ma)
+                if r.success:
+                    logs.append(f'Successfully imported {ma} to GF')
+                else:
+                    errs.append(r.logs)
+            if ma.endswith('.mmt') or ma.endswith('.gf'):
+                r = glif.importMMTfile(ma)
+                if r.success:
+                    logs.append(f'Successfully imported {ma} to MMT')
+                else:
+                    errs.append(r.logs)
+        if errs:
+            return Result(False, logs, '\n'.join(errs))
+        else:
+            return Result(True, logs)
+
+    return _importHelper
+
+GLIF_COMMAND_TYPES : list[CommandType] = [
+            NonApplicableCommandType(['import', 'i'], importHelper),
+        ]
+

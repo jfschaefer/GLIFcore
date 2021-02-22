@@ -189,3 +189,5 @@ def parseBasicCommand(string: str) -> Result[tuple[BasicCommand, str]]:
         command.mainargs.append(mainarg)
     return Result(True, (command, ''))
 
+def indent(s: str, level: int = 4) -> str:
+    return '\n'.join([' '*level + l for l in s.splitlines()])
