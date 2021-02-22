@@ -31,7 +31,7 @@ def find_mmt_jar() -> Result[str]:
                 os.path.join(os.path.expanduser('~'), 'MMT', 'systems', 'MMT', 'deploy', 'mmt.jar')]:
         if os.path.isfile(jar):
             return Result(True, jar, 'Lucky guess')
-    return Result(False)
+    return Result(False, None, 'Failed to find mmt.jar')
 
 def find_mathhub_dir(mmtjar : str) -> Result[str]:
     path = os.getenv('MATHHUB')
@@ -51,6 +51,6 @@ def find_mathhub_dir(mmtjar : str) -> Result[str]:
     path = os.path.join(os.path.dirname(mmtjar), '..', '..', '..', 'MMT-content')
     if os.path.isdir(path):
         return Result(True, os.path.realpath(path), 'Guessed from location of mmt.jar')
-    return Result(False)
+    return Result(False, None, 'Failed to determine MathHub path')
 
 

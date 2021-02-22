@@ -9,7 +9,7 @@ class Repr(Enum):
     ''' Different representations of item content '''
     DEFAULT        = 'default'
     SENTENCE_ORIG  = 'original sentence'
-    SENTENCE_CUR   = 'current sentence'
+    SENTENCE       = 'current sentence'
     AST            = 'abstract syntax tree'
     LOGIC_PLAIN    = 'logical expression (plain)'   # MMT without notations
     LOGIC_STANDARD = 'logical expression'          # MMT with notations
@@ -35,6 +35,7 @@ class Item(object):
 
     def withRepr(self, r: Repr, val: str) -> 'Item':
         ''' doesn't clone! '''
+        self.content[Repr.DEFAULT] = val
         self.content[r] = val
         return self
 
@@ -43,6 +44,16 @@ class Item(object):
         i.errors = self.errors
         i.content = self.content
         return i
+
+    def __str__(self):
+        if not Repr.DEFAULT in self.content:
+            return '[Item has no default representation]'
+        s = self.content[Repr.DEFAULT]
+        if self.errors:
+            return 'Errors:\n    ' + '\n    '.join(self.errors) + '\n' + s
+        return s
+
+
 
 
 class Items(object):
@@ -57,7 +68,7 @@ class Items(object):
         for i, v in enumerate(vals):
             item = Item(i)
             item.content[repr_] = v
-            if repr_ == Repr.SENTENCE_CUR:
+            if repr_ == Repr.SENTENCE:
                 item.content[Repr.SENTENCE_ORIG] = v
             items.items.append(item)
         return items
@@ -69,6 +80,12 @@ class Items(object):
     def withErrors(self, errors: list[str]) -> 'Items':
         self.errors = self.errors + errors
         return self
+
+    def __str__(self):
+        items = '\n'.join([str(item) for item in self.items])
+        if self.errors:
+            return '\n'.join(self.errors) + '\n\n' + items
+        return items
 
 
 
@@ -117,11 +134,13 @@ class GfCommand(Command):
 
         self.is_executable = True
         self.is_applicable = True
-        if bc.mainargs:
-            self.is_applicable = False
 
         self.inrepr = inrepr
         self.outrepr = outrepr
+
+    def handleShellOutput(self, out: str) -> tuple[list[str], list[str]]:    # (outputs, errors)
+        # TODO: Implement this properly (error filtering, ...)
+        return ([s.strip() for s in out.splitlines()], [])
 
     def execute(self, glif):
         assert self.is_executable
@@ -134,7 +153,8 @@ class GfCommand(Command):
             assert gfshell.value
             output = gfshell.handle_command(bc.gfFormat(None))
             # TODO: better output handling
-            return Items.fromVals(self.outrepr, output.splitlines())
+            vals, errs = self.handleShellOutput(output)
+            return Items.fromVals(self.outrepr, vals).withErrors(errs)
         else:
             return Items([]).withErrors([gfshell.logs])
     
@@ -145,12 +165,14 @@ class GfCommand(Command):
         if not gfshell.success:
             return Items([]).withErrors(item.errors + [gfshell.logs])
         assert gfshell.value
-        s = gfshell.value.handle_command(self.shellCommand + ' ' + inp.value)
-        items = Items([])
-        
-        if not inp.success:
-            return items.withErrors(inp.logs)
+        output = gfshell.value.handle_command(self.bc.gfFormat(inp.value, self.inrepr))
+
+        vals, errs = self.handleShellOutput(output)
+        items = Items([]).withErrors(errs)
+        for val in vals:
+            items.items.append(item.getClone().withRepr(self.outrepr, val))
         return items
+
 
 
 class GfCommandType(object):
@@ -173,5 +195,6 @@ class GfCommandType(object):
 
 
 GF_COMMAND_TYPES: list[GfCommandType] = [
-        GfCommandType(['parse', 'p'], Repr.SENTENCE_CUR, Repr.AST)
+        GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST),
+        GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
 ]
