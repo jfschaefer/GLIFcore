@@ -38,6 +38,37 @@ class Glif(object):
         self._commands: dict[str, cmd.CommandType] = {}   # command name -> command type
         self._loadInitialCommands()
 
+    def setArchive(self, archive: str, subdir: Optional[str], create: bool = False) -> Result[str]:
+        if not self.mh:
+            return Result(False, None, 'Error: MathHub folder not found\nLogs:' + parsing.indent('\n'.join(self._findMMTlogs)))
+        logs = []
+        if archive not in self.mh.archives:
+            if create:
+                r = self.mh.makeArchive(archive)
+                if not r.success:
+                    return Result(False, None, f'Error: Failed to create archive {archive}:' + parsing.indent(r.logs))
+                logs.append(f'Successfully created archive {archive}')
+            else:
+                return Result(False, None, f'Error: Archive {archive} doesn\'t exist')
+        if subdir and not self.mh.existsSubdir(archive, subdir):
+            if create:
+                assert self.mh.makeSubdir(archive, subdir).success
+                logs.append(f'Successfully created directory {subdir} in archive {archive}')
+            else:
+                return Result(False, None, f'Error: Archive {archive} doesn\'t have a directory {subdir}')
+
+        self._archive = archive
+        self._subdir = subdir
+        if self._subdir:
+            self.cwd = os.path.join(self.mh.archives[self._archive], 'source', self._subdir)
+        else:
+            self.cwd = os.path.join(self.mh.archives[self._archive], 'source')
+        if self._gfshell:
+            self._gfshell = None
+            logs.append('GF shell will be reloaded')
+        return Result(True, '\n'.join(logs))
+
+
     def _initMMTLocation(self):
         # JAR
         mmtjar = utils.find_mmt_jar()
@@ -121,7 +152,8 @@ class Glif(object):
             assert mmt
             assert self._archive
             rr = mmt.buildFile(self._archive, self._subdir, filename)
-            if not rr.success:
+            if not rr.success and rr.logs:    # We get failures (without logs) for concrete syntaxes
+                                              # TODO: Find a better solution!
                 logs.append(f'MMT import failed:\n{parsing.indent(rr.logs)}')
                 success = False
         else:
@@ -161,5 +193,6 @@ class Glif(object):
         if self._gfshell:
             self._gfshell.do_shutdown()
 
-
+        if self._mmt:
+            self._mmt.do_shutdown()
 

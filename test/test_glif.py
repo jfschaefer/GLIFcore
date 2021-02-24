@@ -29,20 +29,21 @@ class TestGlif(unittest.TestCase):
             self.assertTrue(r.success)
         else:
             self.assertFalse(r.success)
+
         if output is not None:
             self.assertEqual(str(r.value), output)
 
     def test_basic(self):
-        pass
-#         self.command_test('import MiniGrammar.gf MiniGrammarEng.gf')
-#         self.command_test('i MiniGrammarSemantics.mmt')
-#         self.command_test('parse -cat=S "someone loves someone"', output='s someone (love someone)')
+        self.command_test(f'archive {TEST_ARCHIVE} mini')
+        self.command_test('import MiniGrammar.gf MiniGrammarEng.gf')
+        self.command_test('i MiniGrammarSemantics.mmt')
+        self.command_test('parse -cat=S "someone loves someone"', output='s someone (love someone)')
 
-#         self.assertEqual(str(r.value), 'HelloWorld')
-#         r = self.glif.executeCommand('ps "Hello World" | ps -unchars')
-#         self.assertTrue(r.success)
-#         assert r.value
-#         self.assertEqual(str(r.value), 'HelloWorld')
+        r = self.glif.executeCommand('ps "Hello World" | ps -unchars')
+        self.assertEqual(str(r.value), 'HelloWorld')
+        self.assertTrue(r.success)
+        assert r.value
+        self.assertEqual(str(r.value), 'HelloWorld')
 
 if __name__ == '__main__':
     unittest.main()

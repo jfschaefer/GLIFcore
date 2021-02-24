@@ -62,6 +62,9 @@ class MathHub(object):
             f.write(f'id: {archive}\nnarration-base: http://mathhub.info/{archive}')
         return Result(True, path, '')
 
+    def existsSubdir(self, archive: str, subdir: str) -> bool:
+        return os.path.isdir(os.path.join(self.archives[archive], 'source', subdir))
+
     def makeSubdir(self, archive: str, subdir: str) -> Result[str]:
         if not archive in self.archives:
             return Result(False, None, 'archive doesn\'t exist')
@@ -177,4 +180,7 @@ class MMTInterface(object):
                 return Result(True, response['result'], '\n'.join(response['errors']))
             return Result(False, None, '\n'.join(response['errors']))
         return Result(False, None, result.logs)
+
+    def do_shutdown(self):
+        self.server.do_shutdown()
 

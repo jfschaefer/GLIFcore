@@ -135,7 +135,7 @@ def argformat(s : str) -> str:
 def strformat(s : str) -> str:
     return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
-def parseBasicCommand(string: str) -> Result[tuple[BasicCommand, str]]:
+def parseBasicCommand(string: str, splitMainArgAtSpace = False) -> Result[tuple[BasicCommand, str]]:
     string = string.strip()
     commandname, rest = parseCommandName(string.strip())
     command = BasicCommand(commandname, [], [])
@@ -181,6 +181,12 @@ def parseBasicCommand(string: str) -> Result[tuple[BasicCommand, str]]:
             rest = rr.value[1]
             command.mainargs.append(rr.value[0])
             i = 0
+        elif splitMainArgAtSpace and rest[i].isspace():
+            mainarg = mainarg.strip()
+            if mainarg:
+                command.mainargs.append(mainarg)
+            mainarg = ''
+            i += 1
         else:
             i += 1
             mainarg += rest[i-1]

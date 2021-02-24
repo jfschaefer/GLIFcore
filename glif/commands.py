@@ -227,7 +227,7 @@ class NonApplicableCommandType(CommandType):
 
     def fromString(self, string: str) -> Result[tuple[Command, str]]:
         string = string.strip()
-        cmdresult = parseBasicCommand(string)
+        cmdresult = parseBasicCommand(string, splitMainArgAtSpace = True)
         if not cmdresult.success:
             return Result(False, logs=cmdresult.logs)
         assert cmdresult.value
@@ -253,6 +253,7 @@ def wrongCommandPatternResponse(cmd: BasicCommand,
         return Result(False, [], f'Command "{cmd.name}" can have at most {maxMainargs} commands (found {len(cmd.mainargs)})')
 
     return None
+
 
 def importHelper(cmd: BasicCommand):
     def _importHelper(glif):
@@ -281,7 +282,25 @@ def importHelper(cmd: BasicCommand):
 
     return _importHelper
 
+
+def archiveHelper(cmd: BasicCommand):
+    def _archiveHelper(glif):
+        pr = wrongCommandPatternResponse(cmd, allowedArgs = [], minMainargs = 1, maxMainargs = 2)
+        if pr:
+            return pr
+        archive = cmd.mainargs[0]
+        subdir = None
+        if len(cmd.mainargs) > 1:
+            subdir = cmd.mainargs[1]
+
+        r = glif.setArchive(archive, subdir)
+        return Result(r.success, [r.value] if r.value else [], r.logs)
+
+    return _archiveHelper
+
+
 GLIF_COMMAND_TYPES : list[CommandType] = [
             NonApplicableCommandType(['import', 'i'], importHelper),
+            NonApplicableCommandType(['archive', 'a'], archiveHelper),
         ]
 
