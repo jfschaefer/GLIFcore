@@ -1,11 +1,11 @@
 from typing import Optional
-from glif.utils import Result
 from distutils.spawn import find_executable
 from glif import gf
 from glif import commands as cmd
 from glif import parsing
 from glif import mmt
 from glif import utils
+from glif.utils import Result
 import os
 
 
@@ -104,6 +104,20 @@ class Glif(object):
             for name in ct.names:
                 self._commands[name] = ct
 
+    def executeCell(self, code: str) -> list[Result[cmd.Items]]:
+        fileR = parsing.identifyFile(code)
+        if fileR.success:
+            assert fileR.value
+            type_ = fileR.value[0]
+            name = fileR.value[1]
+            type_ = type_.split('-')[0]  # should be one in 'mmt', 'gf', 'elpi'
+            with open(os.path.join(self.cwd, f'{name}.{type_}'), 'w') as fp:
+                fp.write(code)
+            return [self.executeCommand(f'import "{name}.{type_}"')]
+
+        # TODO: comments and multiple commands
+        return [self.executeCommand(code)]
+
     def executeCommand(self, command: str) -> Result[cmd.Items]:
         items = None
         rest = command.strip()
@@ -174,7 +188,6 @@ class Glif(object):
         else:
             return Result(False, logs=f'MMT import failed:\n{parsing.indent(mmtresult.logs)}')
         return Result(True)
-
 
     def getGfShell(self) -> Result[gf.GFShellRaw]:
         if not self._gfshell and self._gfshellFailedLogs is None:

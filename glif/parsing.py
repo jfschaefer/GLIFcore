@@ -19,8 +19,7 @@ from typing import Optional, Union
 from glif.utils import Result
 
 
-# Command parsing
-
+# COMMAND PARSING
 
 def parseCommandName(s: str) -> tuple[str, str]:
     s = s.strip()
@@ -194,6 +193,51 @@ def parseBasicCommand(string: str, splitMainArgAtSpace = False) -> Result[tuple[
     if mainarg:
         command.mainargs.append(mainarg)
     return Result(True, (command, ''))
+
+
+
+# OTHER USEFUL THINGS
+
+def _nextup(s, i, s2):
+    if len(s)-i < len(s2):
+        return 0  # failure
+    if s[i:i+len(s2)] == s2:
+        return i+len(s2)   # > 0 (assuming s2 != '')
+    return 0  # failure
+
+def _skipto(s, i, s2):
+    while i < len(s):
+        n = _nextup(s, i, s2)
+        if n:
+            return n
+        i += 1
+    return 0
+
+
+def identifyFile(s: str) -> Result[tuple[str, str]]:
+    i = 0
+    while True:
+        if s[i].isspace():
+            i += 1
+        elif _nextup(s, i, '//'):  # mmt comment
+            i = _skipto(s, i, '❚')
+        elif _nextup(s, i, '--'):  # gf comment
+            i = _skipto(s, i, '\n')
+        elif _nextup(s, i, '{-'):  # gf block comment
+            i = _skipto(s, i, '-}')
+        elif _nextup(s, i, 'namespace'):
+            i = _skipto(s, i, '❚')
+        else:
+            for (k, t) in [('theory', 'mmt-theory'), ('view', 'mmt-view'),
+                    ('abstract', 'gf-abstract'), ('concrete', 'gf-concrete'), ('resource', 'gf-resource'),
+                    ('interface', 'gf-interface'), ('instance', 'gf-instance'),
+                    ('incomplete concrete', 'gf-incomplete concrete'),
+                    ('mmt:', 'mmt'), ('elpi:', 'elpi')]:
+                n = _nextup(s, i, k)
+                if n:
+                    return Result(True, (t, parseIdentifier(s[n:].strip())[0]))
+            return Result(False)
+    return Result(False)
 
 def indent(s: str, level: int = 4) -> str:
     return '\n'.join([' '*level + l for l in s.splitlines()])
