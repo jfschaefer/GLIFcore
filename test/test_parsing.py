@@ -74,6 +74,24 @@ class TestCommandParsing(unittest.TestCase):
         self.parseBCtest('parse "hello" "world"', 'parse', [], ['hello', 'world'])
 
 
+class TestFileIdentification(unittest.TestCase):
+    def idTest(self, content: str, expected: utils.Result[tuple[str,str]]):
+        r = parsing.identifyFile(content)
+        if expected.success:
+            self.assertTrue(r.success)
+            self.assertEqual(r.value, expected.value)
+        else:
+            self.assertFalse(r.success)
+
+    def test_basic(self):
+        self.idTest('abstract Grammar = { cat T; }', utils.Result(True, ('gf-abstract', 'Grammar')))
+        self.idTest('concrete GrammarEng of Grammar = { lin T = Str; }', utils.Result(True, ('gf-concrete', 'GrammarEng')))
+        self.idTest('theory DDT : ur:?LF = ❚', utils.Result(True, ('mmt-theory', 'DDT')))
+        self.idTest('view V : ?A -> ?B = ❚', utils.Result(True, ('mmt-view', 'V')))
+        self.idTest('parse "Hello world"', utils.Result(False))
+        self.idTest('-- The abstract syntax\nabstract Grammar = { cat T; }', utils.Result(True, ('gf-abstract', 'Grammar')))
+        self.idTest('// Example MMT theory ❚  theory DDT : ur:?LF = ❚', utils.Result(True, ('mmt-theory', 'DDT')))
+
 
 if __name__ == '__main__':
     unittest.main()
