@@ -1,7 +1,7 @@
 import os
 import requests
 import subprocess
-import simplejson.errors
+import simplejson.errors    # type: ignore
 import glif.utils as utils
 import xml.etree.ElementTree as ET    # need XML processing for uncaught MMT exceptions
 from glif.utils import Result
