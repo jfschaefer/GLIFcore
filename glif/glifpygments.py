@@ -5,10 +5,12 @@
     Not all pygments features can be used because a CodeMirror highlighter is automatically
     generated from the lexers.
 
+    Test with:
+        python -m pygments -x -l glifpygments.py:GLIFLexer example.txt
 '''
 
 from pygments.lexer import RegexLexer, using, words, bygroups
-from pygments.token import Comment, Name, Whitespace, Generic, String, Keyword
+from pygments.token import Comment, Name, Whitespace, Generic, String, Keyword, Number, Punctuation
 
 from mmtpygments.mmt_lexer import MMTLexer
 
@@ -23,13 +25,61 @@ class GFLexer(RegexLexer):
             (r'(\s+)', Whitespace),
             (r'(abstract|resource|interface|concrete|instance)(\s+)(\w+)',
                 bygroups(Keyword.Declaration, Whitespace, Name.Class)),
-            (words(('incomplete', 'open', 'of', 'in', 'with', 'let', 'case', 'table', 'overload'), suffix=r'\b').get(),
+            (words(('incomplete', 'open', 'of', 'in', 'with', 'let', 'case', 'table', 'overload', 'where', 'pre'), suffix=r'\b').get(),
                 Keyword),
             (words(('cat', 'fun', 'lincat', 'lin', 'oper', 'flags', 'param', 'data', 'def', 'lindef', 'linref'), suffix=r'\b').get(),
                 Generic.Heading),
+            (words(('Type', 'Int', 'PType', 'Str', 'String'), suffix=r'\b').get(),
+                Name.Builtin),
             (r'"([^"]|(\\"))*"', String),
+            (r'"(\d+)"', Number.Integer),
             (r'\w+', Name)
         ],
+    }
+
+class ELPILexer(RegexLexer):
+    codemirror_name = 'ELPI'
+    rouge_original_source = '...'
+
+    tokens = {
+        'root': [
+            (r'%.*$', Comment.Single),
+            (r'\/\*.*\*\/', Comment.Multiline),
+            (r'([A-Z_]\w*)', Name.Variable),
+            (r'(_)', Name.Variable),
+            (r'(\s+)', Whitespace),
+            (r'(type|kind|accumulate)', Keyword),
+            (words(('prop', 'type', 'int', 'fail', 'list', 'string', 'o'), suffix=r'\b').get(),
+                Name.Builtin),
+            (r'"([^"]|(\\"))*"', String),
+            (r'"(\d+)"', Number.Integer),
+            (r'\w+', Name)
+        ],
+    }
+
+class GLIFCommandLexer(RegexLexer):
+    codemirror_name = 'GLIFCommand'
+    rouge_original_source = '...'
+
+    tokens = {
+        'root': [
+            (r'(--|#|//|%).*$', Comment.Single),
+            (r'(--|#|//|%).*$', Comment.Single),
+            # TODO: Import list of commands
+            (words(('parse', 'p', 'linearize', 'l', 'construct'), suffix=r'\b').get(),
+                Keyword, 'incommand'),
+            (r'\w+', Generic.Error, 'incommand'),  # unknown command?
+        ],
+        'incommand': [
+            (r'([ \t]+)', Whitespace),
+            (r'((?:-\w+)+)$', bygroups(Name.Attribute), '#pop'),
+            (r'((?:-\w+)+)([ \t]+)', bygroups(Name.Attribute, Whitespace)),
+            (r'((?:-\w+)+)(=)((?:\w|\d)+)', bygroups(Name.Attribute, Punctuation, Name.Constant)),
+            (r'((?:-\w+)+)(=)("(?:[^"]|(?:\\"))*")', bygroups(Name.Attribute, Punctuation, String)),
+            (r'"([^"]|(\\"))*"', String),
+            (r'\|', Punctuation, '#pop'),
+            (r'[ \t]*$', Whitespace, '#pop'),
+        ]
     }
 
 def importTokens(target, source, prefix):
@@ -51,10 +101,11 @@ def importRootRef(target, source, test, prefix):
             if len(e) == 2:
                 target['root'].append((e[0], e[1], prefix+'root'))
             elif len(e) == 3 and not e[2].startswith('#'):
-                target['root'].append((e[0], e[1], prefix+e[2]))   # problem: pops back to root, not prefix.root
+                target['root'].append((e[0], e[1], prefix+e[2]))
+            elif len(e) == 3 and e[2] == '#pop':
+                target['root'].append((e[0], e[1], prefix+'root'))
             else:
                 target['root'].append(e)
-
 
 class GLIFLexer(RegexLexer):
     codemirror_name = 'GLIF'
@@ -62,6 +113,9 @@ class GLIFLexer(RegexLexer):
 
     tokens = {
         'root': [
+            (r'(gf:|GF:)(\s+)(\w+)', bygroups(Generic.Heading, Whitespace, Name.Class), 'gf.root'),
+            (r'(mmt:|MMT:)(\s+)(\w+)', bygroups(Generic.Heading, Whitespace, Name.Class), 'mmt.root'),
+            (r'(elpi:|ELPI:)(\s+)(\w+)', bygroups(Generic.Heading, Whitespace, Name.Class), 'elpi.root'),
         ],
     }
 
@@ -73,13 +127,19 @@ class GLIFLexer(RegexLexer):
             return True
         return False
     importRootRef(tokens, MMTLexer.tokens, mmttest, 'mmt.')
+    importRootRef(tokens, ELPILexer.tokens, lambda e : 'accumulate' in e[0], 'elpi.')
+    importRootRef(tokens, GLIFCommandLexer.tokens, lambda e : len(e) == 3 and e[2] == 'incommand', 'cmd.')
 
     importTokens(tokens, GFLexer.tokens, 'gf.')
     importTokens(tokens, MMTLexer.tokens, 'mmt.')
+    importTokens(tokens, ELPILexer.tokens, 'elpi.')
+    importTokens(tokens, GLIFCommandLexer.tokens, 'cmd.')
 
     tokens['root'] += [
             (r'--.*$', Comment.Single),
             (r'\/\/.*$', Comment.Single),
+            (r'%.*$', Comment.Single),
+            (r'\/\*.*\*\/', Comment.Multiline),
             (r'\w+', Generic.Error),
         ]
 
