@@ -9,6 +9,9 @@ class Result(Generic[T]):
         self.value = value
         self.logs = logs
 
+    def __str__(self):  # only for debugging
+        return f'Success: {self.success}\nValue: {self.value}\nLogs: {self.logs}'
+
 def find_free_port() -> int:
     ''' from https://stackoverflow.com/a/45690594 '''
     import socket

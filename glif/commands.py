@@ -1,7 +1,6 @@
 from typing import Optional, Callable
 from glif.utils import Result
 from glif.parsing import *
-from glif import glif
 from enum import Enum
 
 
@@ -13,7 +12,7 @@ class Repr(Enum):
     AST            = 'abstract syntax tree'
     LOGIC_PLAIN    = 'logical expression (plain)'   # MMT without notations
     LOGIC_STANDARD = 'logical expression'           # MMT with notations
-    LOGIC_ELPI     = 'logical expression (elpi)'    # MMT with notations
+    LOGIC_ELPI     = 'logical expression (elpi)'    # ELPI
 
 
 class Item(object):
@@ -33,9 +32,10 @@ class Item(object):
             message += '\nAvailable representations: ' + ' '.join([f'[{rr}]' for rr in self.content])
             return Result(False, self.content[Repr.DEFAULT], '\n'.join(self.errors + [message]))
 
-    def withRepr(self, r: Repr, val: str) -> 'Item':
+    def withRepr(self, r: Repr, val: str, updateDefault: bool = True) -> 'Item':
         ''' doesn't clone! '''
-        self.content[Repr.DEFAULT] = val
+        if updateDefault:
+            self.content[Repr.DEFAULT] = val
         self.content[r] = val
         return self
 
@@ -88,6 +88,7 @@ class Items(object):
         return items
 
 
+from glif import glif
 
 class Command(object):
     is_executable: bool = False
@@ -198,6 +199,7 @@ class GfCommandType(CommandType):
 GF_COMMAND_TYPES: list[GfCommandType] = [
         GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST),
         GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
+        GfCommandType(['linearize', 'l'], Repr.AST, Repr.SENTENCE),
 ]
 
 
@@ -216,6 +218,7 @@ class NonApplicableCommand(Command):
             return items.withErrors([r.logs])
         else:
             return items
+
 
 class NonApplicableCommandType(CommandType):
     def __init__(self, names: list[str],
@@ -236,28 +239,85 @@ class NonApplicableCommandType(CommandType):
         return Result(True, value=(NonApplicableCommand(self.fgen(cmd), self.outrepr), rest))
 
 
+class OnlyApplicableCommand(Command):
+    def __init__(self, f: Callable[['glif.Glif', Items], Items], mainArgs: Optional[Items]):
+        self.f = f
+        self.mainArgs = mainArgs
+        if self.mainArgs:
+            self.is_executable = False
+            self.is_applicable = True
+        else:
+            self.is_executable = True
+            self.is_applicable = False
+
+    def execute(self, glif):
+        if not self.is_executable:
+            return Items([]).withErrors(['No input was provided'])
+        return self.f(glif, self.mainArgs)
+
+    def apply(self, glif, items):
+        return self.f(glif, items)
+
+
+class OnlyApplicableCommandType(CommandType):
+    def __init__(self, names: list[str], fgen: Callable[[BasicCommand], Callable[['glif.Glif', Items], Items]], argRepr: Repr):
+        CommandType.__init__(self, names)
+        self.fgen = fgen
+        self.argRepr = argRepr
+
+    def fromString(self, string: str) -> Result[tuple[Command, str]]:
+        string = string.strip()
+        cmdresult = parseBasicCommand(string, splitMainArgAtSpace = True)
+        if not cmdresult.success:
+            return Result(False, logs=cmdresult.logs)
+        assert cmdresult.value
+        cmd, rest = cmdresult.value
+        assert cmd.name in self.names
+        oacmd = OnlyApplicableCommand(self.fgen(cmd), Items.fromVals(self.argRepr, cmd.mainargs) if cmd.mainargs else None)
+        return Result(True, value=(oacmd, rest))
+
+
+
+
 def wrongCommandPatternResponse(cmd: BasicCommand,
-        allowedArgs: Optional[list[str]] = None,
+        allowedKeyArgs: Optional[list[str]] = None,
+        allowedKeyValArgs: Optional[list[str]] = None,
+        allowRepeatedArgs: bool = False,
         minMainargs: int = 0,
         maxMainargs: Optional[int] = None) -> Optional[Result[list[str]]]:
     ''' returns a failed result in case cmd doesn't satisfy basic requirements '''
-    if allowedArgs is not None:
+    assert (allowedKeyArgs is None and allowedKeyValArgs is None) or (allowedKeyArgs is not None and allowedKeyValArgs is not None)
+    if allowedKeyArgs is not None and allowedKeyValArgs is not None:
         for arg in cmd.args:
-            if arg.key not in allowedArgs:
-                return Result(False, [], f'Illegal argument "{arg.key}" for command "{cmd.name}"')
+            if arg.value and arg.key not in allowedKeyValArgs:
+                if arg.key in allowedKeyArgs:
+                    return Result(False, [], f'Argument "{arg.key}" for command "{cmd.name}" cannot have a value')
+                else:
+                    return Result(False, [], f'Illegal argument "{arg.key}" for command "{cmd.name}"')
+            elif not arg.value and arg.key not in allowedKeyArgs:
+                if arg.key in allowedKeyValArgs:
+                    return Result(False, [], f'Argument "{arg.key}" for command "{cmd.name}" requires a value')
+                else:
+                    return Result(False, [], f'Illegal argument "{arg.key}" for command "{cmd.name}"')
+    if not allowRepeatedArgs:
+        argkeys = []
+        for arg in cmd.args:
+            if arg.key in argkeys:
+                return Result(False, [], f'Argument "{arg.key}" supplied multiple times to command "{cmd.name}"')
+            argkeys.append(arg.key)
 
     if len(cmd.mainargs) < minMainargs:
-        return Result(False, [], f'Command "{cmd.name}" requires at least {minMainargs} commands (found {len(cmd.mainargs)})')
+        return Result(False, [], f'Command "{cmd.name}" requires at least {minMainargs} arguments (found {len(cmd.mainargs)})')
 
     if maxMainargs is not None and len(cmd.mainargs) > maxMainargs:
-        return Result(False, [], f'Command "{cmd.name}" can have at most {maxMainargs} commands (found {len(cmd.mainargs)})')
+        return Result(False, [], f'Command "{cmd.name}" can have at most {maxMainargs} arguments (found {len(cmd.mainargs)})')
 
     return None
 
 
 def importHelper(cmd: BasicCommand):
-    def _importHelper(glif):
-        pr = wrongCommandPatternResponse(cmd, allowedArgs = [], minMainargs = 1)
+    def _importHelper(glif: glif.Glif):
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [], minMainargs = 1)
         if pr:
             return pr
         logs = []
@@ -284,8 +344,8 @@ def importHelper(cmd: BasicCommand):
 
 
 def archiveHelper(cmd: BasicCommand):
-    def _archiveHelper(glif):
-        pr = wrongCommandPatternResponse(cmd, allowedArgs = [], minMainargs = 1, maxMainargs = 2)
+    def _archiveHelper(glif: glif.Glif):
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [], minMainargs = 1, maxMainargs = 2)
         if pr:
             return pr
         archive = cmd.mainargs[0]
@@ -293,14 +353,74 @@ def archiveHelper(cmd: BasicCommand):
         if len(cmd.mainargs) > 1:
             subdir = cmd.mainargs[1]
 
-        r = glif.setArchive(archive, subdir)
-        return Result(r.success, [r.value] if r.value else [], r.logs)
+        r = glif.setArchive(archive, subdir, create=True)
+        output = []
+        if r.value:
+            output.append(r.value)
+        if r.success:
+            output.append('Successfully changed archive')
+        return Result(r.success, output, r.logs)
 
     return _archiveHelper
 
+def constructHelper(cmd: BasicCommand):
+    def _constructHelper(glif: glif.Glif, items: Items) -> Items:
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = ['v', 'view'])
+        if pr:
+            return Items([]).withErrors([pr.logs])
+        args = {a.key:a.value for a in cmd.args}
+        view = None
+        if 'v' in args and 'view' in args:
+            return Items([]).withErrors(['At most one view should be specified for the "construct" command'])
+        if 'view' in args:
+            view = args['view']
+        elif 'v' in args:
+            view = args['v']
+        elif glif.defaultview:
+            view = glif.defaultview
+        else:
+            return Items([]).withErrors(['No semantics construction view has been specified for the "construct" command and no default view is available.'])
+
+        mmt_result = glif.getMMT()
+        if not mmt_result.success:
+            return Items([]).withErrors([mmt_result.logs])
+        mmt = mmt_result.value
+        assert mmt
+
+        archsub = glif.getArchiveSubdir()
+        if not archsub.success:
+            return Items([]).withErrors(['"construct" failed.', archsub.logs])
+        assert archsub.value
+
+        def helperunwrap(s : Optional[str]) -> str:
+            assert s
+            return s
+        asts = list({ helperunwrap(item.tryGetRepr(Repr.AST).value) for item in items.items })
+        r = mmt.construct(asts, archsub.value[0], archsub.value[1], view)
+
+        if not r.success:
+            return Items([]).withErrors(['"construct" failed.', r.logs])
+        assert r.value
+
+        d = {asts[i] : i for i in range(len(asts))}
+        newItems = Items([])
+        newItems.errors = items.errors
+        for item in items.items:
+            astrepr = item.tryGetRepr(Repr.AST)
+            assert astrepr.value
+            i = item.getClone().withRepr(Repr.LOGIC_STANDARD, r.value['mmt'][d[astrepr.value]])
+            if 'elpi' in r.value:
+                i = i.withRepr(Repr.LOGIC_ELPI, r.value['elpi'][d[astrepr.value]], False)
+            if not astrepr.success:
+                i.errors.append(astrepr.logs)
+            newItems.items.append(i)
+        return newItems
+
+    return _constructHelper
 
 GLIF_COMMAND_TYPES : list[CommandType] = [
             NonApplicableCommandType(['import', 'i'], importHelper),
             NonApplicableCommandType(['archive', 'a'], archiveHelper),
+            OnlyApplicableCommandType(['construct', 'c'], constructHelper, Repr.AST),
         ]
 

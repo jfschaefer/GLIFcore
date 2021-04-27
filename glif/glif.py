@@ -25,6 +25,8 @@ class Glif(object):
         self._findMMTlogs: list[str] = []
         self._initMMTLocation()
 
+        self.defaultview : Optional[str] = None
+
 
         self._archive: Optional[str] = None
         self._subdir: Optional[str] = None
@@ -68,6 +70,11 @@ class Glif(object):
             logs.append('GF shell will be reloaded')
         return Result(True, '\n'.join(logs))
 
+    def getArchiveSubdir(self) -> Result[tuple[str,Optional[str]]]:
+        if self._archive:
+            return Result(True, (self._archive, self._subdir))
+        return Result(False, None, 'No MMT archive selected. This is probably due to problems during the initialization of MMT. Here are the logs:\n' + parsing.indent("\n".join(self._findMMTlogs)))
+
 
     def _initMMTLocation(self):
         # JAR
@@ -110,13 +117,49 @@ class Glif(object):
             assert fileR.value
             type_ = fileR.value[0]
             name = fileR.value[1]
-            type_ = type_.split('-')[0]  # should be one in 'mmt', 'gf', 'elpi'
-            with open(os.path.join(self.cwd, f'{name}.{type_}'), 'w') as fp:
+            ending = type_.split('-')[0]  # should be one in 'mmt', 'gf', 'elpi'
+            archiveresult = self.getArchiveSubdir()
+            if ending == 'mmt' and not archiveresult.success:
+                return [Result(False, None, archiveresult.logs)]
+            with open(os.path.join(self.cwd, f'{name}.{ending}'), 'w') as fp:
+                if type_ in ['mmt-view', 'mmt-theory']:
+                    assert archiveresult.value
+                    archive, subdir = archiveresult.value
+                    fp.write(f'namespace http://mathhub.info/{archive}{"/" + subdir if subdir else ""} ❚\n\n')
                 fp.write(code)
-            return [self.executeCommand(f'import "{name}.{type_}"')]
+
+            result = self.executeCommand(f'import "{name}.{ending}"')
+            if result.success and type_ == 'mmt-view' and self.defaultview != name:
+                if result.logs:
+                    result.logs += '\n'
+                result.logs += f'"{name}" is the new default view'
+                self.defaultview = name
+
+            return [result]
 
         # TODO: comments and multiple commands
-        return [self.executeCommand(code)]
+        return self.executeCommands(code)
+
+    def executeCommands(self, code: str) -> list[Result[cmd.Items]]:
+        results = []
+        currentcommand = ''
+        for line in code.splitlines():
+            line = line.strip()
+            if line.startswith('"') or currentcommand.endswith('|'):
+                currentcommand += '\n' + line
+                continue
+            if line.startswith('--') or line.startswith('//') or line.startswith('#'):
+                continue
+            if line == '':
+                continue
+            if currentcommand.strip():
+                results.append(self.executeCommand(currentcommand))
+            currentcommand = line
+        if currentcommand.strip():
+            results.append(self.executeCommand(currentcommand))
+        if not results:
+            return [Result(False, logs=f'No command given')]
+        return results
 
     def executeCommand(self, command: str) -> Result[cmd.Items]:
         items = None

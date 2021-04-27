@@ -13,6 +13,10 @@ from pygments.lexer import RegexLexer, using, words, bygroups
 from pygments.token import Comment, Name, Whitespace, Generic, String, Keyword, Number, Punctuation
 
 from mmtpygments.mmt_lexer import MMTLexer
+# # import glif
+# from glif import gf
+import glif.commands as commands
+# from glif.commands import GF_COMMAND_TYPES, GLIF_COMMAND_TYPES
 
 
 class GFLexer(RegexLexer):
@@ -63,11 +67,11 @@ class GLIFCommandLexer(RegexLexer):
 
     tokens = {
         'root': [
-            (r'(--|#|//|%).*$', Comment.Single),
-            (r'(--|#|//|%).*$', Comment.Single),
-            # TODO: Import list of commands
-            (words(('parse', 'p', 'linearize', 'l', 'construct'), suffix=r'\b').get(),
+            (r'(--|#|\/\/|%).*$', Comment.Single),
+            (r'(--|#|\/\/|%).*$', Comment.Single),
+            (words((name for cmdt in commands.GF_COMMAND_TYPES + commands.GLIF_COMMAND_TYPES for name in cmdt.names), suffix=r'\b').get(),
                 Keyword, 'incommand'),
+            (r'"([^"]|(\\"))*"', String, 'incommand'),   # lines starting with a string must still be part of the previous command
             (r'\w+', Generic.Error, 'incommand'),  # unknown command?
         ],
         'incommand': [

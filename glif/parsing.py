@@ -225,6 +225,10 @@ def identifyFile(s: str) -> Result[tuple[str, str]]:
             i = _skipto(s, i, '\n')
         elif _nextup(s, i, '{-'):  # gf block comment
             i = _skipto(s, i, '-}')
+        elif _nextup(s, i, '%'):   # elpi comment
+            i = _skipto(s, i, '\n')
+        elif _nextup(s, i, '/*'):  # elpi block comment
+            i = _skipto(s, i, '*/')
         elif _nextup(s, i, 'namespace'):
             i = _skipto(s, i, '❚')
         else:
@@ -232,7 +236,9 @@ def identifyFile(s: str) -> Result[tuple[str, str]]:
                     ('abstract', 'gf-abstract'), ('concrete', 'gf-concrete'), ('resource', 'gf-resource'),
                     ('interface', 'gf-interface'), ('instance', 'gf-instance'),
                     ('incomplete concrete', 'gf-incomplete concrete'),
-                    ('mmt:', 'mmt'), ('elpi:', 'elpi')]:
+                    ('mmt:', 'mmt'), ('elpi:', 'elpi'), ('gf:', 'gf'),
+                    ('MMT:', 'mmt'), ('ELPI:', 'elpi'), ('GF:', 'gf'),
+                    ('kind', 'elpi'), ('type', 'elpi')]:
                 n = _nextup(s, i, k)
                 if n:
                     return Result(True, (t, parseIdentifier(s[n:].strip())[0]))

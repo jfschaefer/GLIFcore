@@ -65,14 +65,16 @@ class TestMMT(unittest.TestCase):
         result = self.mmt.construct(['s everyone (love someone)', 's someone (love someone)'],
                 TEST_ARCHIVE, 'mini', 'MiniGrammarSemantics', deltaExpand = False)
         self.assertTrue(result.success)
-        self.assertEqual(len(result.value), 2)
-        self.assertEqual(result.value[0], '∀[x]∃(love x)')
+        self.assertEqual(len(result.value['mmt']), 2)
+        self.assertEqual(len(result.value['elpi']), 2)
+        self.assertEqual(result.value['mmt'][0], '∀[x]∃(love x)')
+        self.assertEqual(result.value['elpi'][0], '(forall (X/x \\ exists (love X/x)))')
 
         # Test delta expansion
         result = self.mmt.construct(['s everyone (love someone)'],
                 TEST_ARCHIVE, 'mini', 'MiniGrammarSemantics', deltaExpand = True)
         self.assertTrue(result.success)
-        self.assertEqual(result.value[0], '∀[x]¬∀[x/r]¬(love x x/r)')
+        self.assertEqual(result.value['mmt'][0], '∀[x]¬∀[x/r]¬(love x x/r)')
 
 if __name__ == '__main__':
     unittest.main()
