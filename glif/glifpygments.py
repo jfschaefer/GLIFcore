@@ -75,14 +75,21 @@ class GLIFCommandLexer(RegexLexer):
             (r'\w+', Generic.Error, 'incommand'),  # unknown command?
         ],
         'incommand': [
-            (r'([ \t]+)', Whitespace),
-            (r'((?:-\w+)+)$', bygroups(Name.Attribute), '#pop'),
-            (r'((?:-\w+)+)([ \t]+)', bygroups(Name.Attribute, Whitespace)),
-            (r'((?:-\w+)+)(=)((?:\w|\d)+)', bygroups(Name.Attribute, Punctuation, Name.Constant)),
-            (r'((?:-\w+)+)(=)("(?:[^"]|(?:\\"))*")', bygroups(Name.Attribute, Punctuation, String)),
+            (r'(-\w+)$', bygroups(Name.Attribute), '#pop'),
+            (r'(-\w+)', bygroups(Name.Attribute)),
+            (r'(-\w+)(=)((?:\w|\d)+)$', bygroups(Name.Attribute, Punctuation, Name.Constant), '#pop'),
+            (r'(-\w+)(=)((?:\w|\d)+)', bygroups(Name.Attribute, Punctuation, Name.Constant)),
+            (r'(-\w+)(=)("(?:[^"]|(?:\\"))*")$', bygroups(Name.Attribute, Punctuation, String), '#pop'),
+            (r'(-\w+)(=)("(?:[^"]|(?:\\"))*")', bygroups(Name.Attribute, Punctuation, String)),
+            (r'"([^"]|(\\"))*"$', String, '#pop'),
             (r'"([^"]|(\\"))*"', String),
             (r'\|', Punctuation, '#pop'),
             (r'[ \t]*$', Whitespace, '#pop'),
+            (r'\w+$', Name.Constant, '#pop'),
+            (r'\w+', Name.Constant),
+            (r'[\(\)]$', Punctuation, '#pop'),
+            (r'[\(\)]', Punctuation),
+            (r'([ \t]+)', Whitespace),
         ]
     }
 
