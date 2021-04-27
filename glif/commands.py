@@ -66,8 +66,7 @@ class Items(object):
     def fromVals(self, repr_: Repr, vals: list[str]) -> 'Items':
         items = Items([])
         for i, v in enumerate(vals):
-            item = Item(i)
-            item.content[repr_] = v
+            item = Item(i).withRepr(repr_, v)
             if repr_ == Repr.SENTENCE:
                 item.content[Repr.SENTENCE_ORIG] = v
             items.items.append(item)
@@ -256,7 +255,10 @@ class OnlyApplicableCommand(Command):
         return self.f(glif, self.mainArgs)
 
     def apply(self, glif, items):
-        return self.f(glif, items)
+        items = self.f(glif, items)
+        if self.mainArgs:
+            items.withErrors(['Ignoring the provided arguments: ' + ', '.join([str(a) for a in self.mainArgs.items])])
+        return items
 
 
 class OnlyApplicableCommandType(CommandType):
