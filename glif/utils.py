@@ -1,5 +1,7 @@
 import os
 from typing import Optional, TypeVar, Generic
+from distutils.spawn import find_executable
+import subprocess
 
 T = TypeVar('T')
 
@@ -55,5 +57,20 @@ def find_mathhub_dir(mmtjar : str) -> Result[str]:
     if os.path.isdir(path):
         return Result(True, os.path.realpath(path), 'Guessed from location of mmt.jar')
     return Result(False, None, 'Failed to determine MathHub path')
+
+def dot2svg(dot: bytes) -> Result[bytes]:
+    dotpath = find_executable('dot')
+    if not dotpath:
+        return Result(False, None, 'Failed to locate executable "dot"')
+
+    proc = subprocess.Popen([dotpath, '-Tsvg'], stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    assert proc.stdin
+    assert proc.stdout
+    proc.stdin.write(dot)
+    proc.stdin.close()
+    svg = proc.stdout.read()
+    proc.wait()
+    return Result(True, svg)
+
 
 

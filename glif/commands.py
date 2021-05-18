@@ -13,7 +13,8 @@ class Repr(Enum):
     LOGIC_PLAIN    = 'logical expression (plain)'   # MMT without notations
     LOGIC_STANDARD = 'logical expression'           # MMT with notations
     LOGIC_ELPI     = 'logical expression (elpi)'    # ELPI
-
+    GRAPH_DOT      = 'graph-dot'                    # graph in dot format
+    GRAPH_SVG      = 'graph-svg'                    # graph in svg format
 
 class Item(object):
     ''' Something that can be passed between commands (AST, sentence, logical expression, ...).
@@ -23,6 +24,7 @@ class Item(object):
         self.errors: list[str] = []
         self.original_id: int = original_id
         self.content: dict[Repr, str] = {}
+        self.currentRepr: Repr = None
 
     def tryGetRepr(self, r: Repr) -> Result[str]:
         if r in self.content:
@@ -37,6 +39,7 @@ class Item(object):
         if updateDefault:
             self.content[Repr.DEFAULT] = val
         self.content[r] = val
+        self.currentRepr = r
         return self
 
     def getClone(self) -> 'Item':
@@ -142,6 +145,8 @@ class GfCommand(Command):
 
     def handleShellOutput(self, out: str) -> tuple[list[str], list[str]]:    # (outputs, errors)
         # TODO: Implement this properly (error filtering, ...)
+        if self.outrepr == Repr.GRAPH_DOT:
+            return ([out], [])
         return ([s.strip() for s in out.splitlines()], [])
 
     def execute(self, glif):
@@ -167,7 +172,7 @@ class GfCommand(Command):
         if not gfshell.success:
             return Items([]).withErrors(item.errors + [gfshell.logs])
         assert gfshell.value
-        output = gfshell.value.handle_command(self.bc.gfFormat(inp.value, self.inrepr))
+        output = gfshell.value.handle_command(self.bc.gfFormat(inp.value, self.inrepr != Repr.AST))
 
         vals, errs = self.handleShellOutput(output)
         items = Items([]).withErrors(errs)
@@ -199,6 +204,7 @@ GF_COMMAND_TYPES: list[GfCommandType] = [
         GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST),
         GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
         GfCommandType(['linearize', 'l'], Repr.AST, Repr.SENTENCE),
+        GfCommandType(['visualize_tree', 'vt'], Repr.AST, Repr.GRAPH_DOT),
 ]
 
 
