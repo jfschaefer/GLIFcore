@@ -66,6 +66,7 @@ class Glif(object):
         else:
             self.cwd = os.path.join(self.mh.archives[self._archive], 'source')
         if self._gfshell:
+            self._gfshell.do_shutdown()
             self._gfshell = None
             logs.append('GF shell will be reloaded')
         return Result(True, '\n'.join(logs))

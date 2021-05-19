@@ -45,5 +45,15 @@ class TestGlif(unittest.TestCase):
         assert r.value
         self.assertEqual(str(r.value), 'HelloWorld')
 
+    def test_gf_multiple_output(self):
+        self.command_test(f'archive {TEST_ARCHIVE} mini')
+        self.command_test('import MiniGrammar.gf MiniGrammarEng.gf')
+        r = self.glif.executeCommand('parse -cat=S "someone loves someone and someone loves everyone and everyone loves someone"')
+        self.assertTrue(r.success)
+        self.assertEqual(len(r.value.items), 2)
+        strs = [str(item) for item in r.value.items]
+        self.assertIn('and (s someone (love someone)) (and (s someone (love everyone)) (s everyone (love someone)))', strs)
+        self.assertIn('and (and (s someone (love someone)) (s someone (love everyone))) (s everyone (love someone))', strs)
+
 if __name__ == '__main__':
     unittest.main()

@@ -44,8 +44,8 @@ class Item(object):
 
     def getClone(self) -> 'Item':
         i = Item(self.original_id)
-        i.errors = self.errors
-        i.content = self.content
+        i.errors = self.errors[:]
+        i.content = self.content.copy()
         return i
 
     def __str__(self):
