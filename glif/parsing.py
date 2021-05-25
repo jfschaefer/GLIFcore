@@ -126,6 +126,12 @@ class BasicCommand(object):
         else:
             return head
 
+    def getValOrDefault(self, variants: set[str], default: str) -> str:
+        for c in self.args:
+            if c.key in variants:
+                return c.value
+        return default
+
 def argformat(s : str) -> str:
     if s.isidentifier() or s.isalnum():
         return s

@@ -288,22 +288,24 @@ class OnlyApplicableCommandType(CommandType):
 
 
 def wrongCommandPatternResponse(cmd: BasicCommand,
-        allowedKeyArgs: Optional[list[str]] = None,
-        allowedKeyValArgs: Optional[list[str]] = None,
+        allowedKeyArgs: Optional[list[set[str]]] = None,      # each set contains synonyms of same arg
+        allowedKeyValArgs: Optional[list[set[str]]] = None,
         allowRepeatedArgs: bool = False,
         minMainargs: int = 0,
         maxMainargs: Optional[int] = None) -> Optional[Result[list[str]]]:
     ''' returns a failed result in case cmd doesn't satisfy basic requirements '''
     assert (allowedKeyArgs is None and allowedKeyValArgs is None) or (allowedKeyArgs is not None and allowedKeyValArgs is not None)
     if allowedKeyArgs is not None and allowedKeyValArgs is not None:
+        allowedKeyArgsFlat = {ee for e in allowedKeyArgs for ee in e}
+        allowedKeyValArgsFlat = {ee for e in allowedKeyValArgs for ee in e}
         for arg in cmd.args:
-            if arg.value and arg.key not in allowedKeyValArgs:
-                if arg.key in allowedKeyArgs:
+            if arg.value and arg.key not in allowedKeyValArgsFlat:
+                if arg.key in allowedKeyArgsFlat:
                     return Result(False, [], f'Argument "{arg.key}" for command "{cmd.name}" cannot have a value')
                 else:
                     return Result(False, [], f'Illegal argument "{arg.key}" for command "{cmd.name}"')
-            elif not arg.value and arg.key not in allowedKeyArgs:
-                if arg.key in allowedKeyValArgs:
+            elif not arg.value and arg.key not in allowedKeyArgsFlat:
+                if arg.key in allowedKeyValArgsFlat:
                     return Result(False, [], f'Argument "{arg.key}" for command "{cmd.name}" requires a value')
                 else:
                     return Result(False, [], f'Illegal argument "{arg.key}" for command "{cmd.name}"')
@@ -313,6 +315,11 @@ def wrongCommandPatternResponse(cmd: BasicCommand,
             if arg.key in argkeys:
                 return Result(False, [], f'Argument "{arg.key}" supplied multiple times to command "{cmd.name}"')
             argkeys.append(arg.key)
+        if allowedKeyArgs is not None and allowedKeyValArgs is not None:
+            for kset in allowedKeyArgs + allowedKeyValArgs:
+                used = [k for k in kset if k in argkeys]
+                if len(used) > 1:
+                    return Result(False, [], f'You cannot use the synonymous arguments "{used[0]}" and "{used[1]}" at the same time for the command "{cmd.name}".')
 
     if len(cmd.mainargs) < minMainargs:
         return Result(False, [], f'Command "{cmd.name}" requires at least {minMainargs} arguments (found {len(cmd.mainargs)})')
@@ -381,20 +388,11 @@ def archiveHelper(cmd: BasicCommand):
 
 def constructHelper(cmd: BasicCommand):
     def _constructHelper(glif: glif.Glif, items: Items) -> Items:
-        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = ['v', 'view'])
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [{'v', 'view'}])
         if pr:
             return Items([]).withErrors([pr.logs])
-        args = {a.key:a.value for a in cmd.args}
-        view = None
-        if 'v' in args and 'view' in args:
-            return Items([]).withErrors(['At most one view should be specified for the "construct" command'])
-        if 'view' in args:
-            view = args['view']
-        elif 'v' in args:
-            view = args['v']
-        elif glif.defaultview:
-            view = glif.defaultview
-        else:
+        view = cmd.getValOrDefault({'v', 'view'}, glif.defaultview if glif.defaultview else '')
+        if not view:
             return Items([]).withErrors(['No semantics construction view has been specified for the "construct" command and no default view is available.'])
 
         mmt_result = glif.getMMT()
@@ -434,29 +432,18 @@ def constructHelper(cmd: BasicCommand):
 
     return _constructHelper
 
-def elpiFileExtractHelper(glif: 'glif.Glif', cmd: BasicCommand) -> Result[str]:
-    args = {a.key:a.value for a in cmd.args}
-    file = glif.defaultelpi
-    if 'f' in args and 'file' in args:
-        return Result(False, None, f'At most one view should be specified for the "{cmd.name}" command')
-    for k in ['f', 'file']:
-        if k in args:
-            file = args[k]
-            break
-    if file:
-        return Result(True, file)
-    return Result(False, None, f'No elpi file was specified for the "{cmd.name}" command')
-
-
 def filterHelper(cmd: BasicCommand):
     def _filterHelper(glif: glif.Glif, items: Items) -> Items:
-        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = ['notc', 'no-typechecking'], allowedKeyValArgs = ['f', 'file'])
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'notc', 'no-typechecking'}], allowedKeyValArgs = [{'f', 'file'}, {'p', 'predicate'}])
         if pr:
             return Items([]).withErrors([pr.logs])
         typecheck = not any(arg.key in {'notc', 'no-typechecking'} for arg in cmd.args)
-        file = elpiFileExtractHelper(glif, cmd)
-        if not file.success:
-            return Items([]).withErrors([file.logs])
+        file = cmd.getValOrDefault({'f', 'file'}, glif.defaultelpi if glif.defaultelpi else '')
+        if not file:
+            return Items([]).withErrors(['No ELPI file was specified for the "{cmd.name}" command and now default file is available.'])
+        if not file.endswith('.elpi'):
+            file += '.elpi'
+        predicate = cmd.getValOrDefault({'p', 'predicate'}, 'filter')
         expressions = []
         for itemid, item in enumerate(items.items):
             s = item.content.get(Repr.SENTENCE)
@@ -473,8 +460,7 @@ def filterHelper(cmd: BasicCommand):
             expressions.append(expr.strip() + '.')
 
         stdin = '\n'.join(expressions + ['glif.endofitems.'])
-        assert file.value
-        r = runelpi(glif.cwd, file.value, 'glif.filter filter', typecheck, stdin)
+        r = runelpi(glif.cwd, file, f'glif.filter {predicate}', typecheck, stdin)
         if not r.success:
             return items.withErrors(items.errors + [r.logs])
         tokeep = []
