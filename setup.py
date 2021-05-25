@@ -16,4 +16,5 @@ setup(
         'Development Status :: 1 - Planning',
         'Programming Language :: Python :: 3',
     ],
+    include_package_data = True,
 )

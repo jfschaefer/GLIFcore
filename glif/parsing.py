@@ -214,7 +214,7 @@ def _skipto(s, i, s2):
     return 0
 
 
-def identifyFile(s: str) -> Result[tuple[str, str]]:
+def identifyFile(s: str) -> Result[tuple[str, str, str]]:   # (type, name, content)
     i = 0
     while True:
         if s[i].isspace():
@@ -241,10 +241,11 @@ def identifyFile(s: str) -> Result[tuple[str, str]]:
                     ('kind', 'elpi'), ('type', 'elpi')]:
                 n = _nextup(s, i, k)
                 if n:
-                    s = s[n:].strip()
-                    if not s[0].isidentifier():
+                    s2 = s[n:].strip()
+                    if not s2[0].isidentifier():
                         return Result(False, None, f'Expected identifier after "{k}"')
-                    return Result(True, (t, parseIdentifier(s)[0]))
+                    pi = parseIdentifier(s2)
+                    return Result(True, (t, pi[0], pi[1] if k.endswith(':') else s))
             return Result(False)
     return Result(False)
 

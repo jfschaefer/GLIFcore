@@ -1,5 +1,5 @@
 from typing import Optional, Callable
-from glif.utils import Result
+from glif.utils import Result, runelpi
 from glif.parsing import *
 from enum import Enum
 
@@ -347,6 +347,8 @@ def importHelper(cmd: BasicCommand):
                 r = glif.importELPIfile(ma)
                 if r.success:
                     logs.append(f'Successfully imported {ma}')
+                    if r.logs:
+                        logs.append(r.logs)
                 else:
                     errs.append(r.logs)
         if errs:
@@ -432,9 +434,70 @@ def constructHelper(cmd: BasicCommand):
 
     return _constructHelper
 
+def elpiFileExtractHelper(glif: 'glif.Glif', cmd: BasicCommand) -> Result[str]:
+    args = {a.key:a.value for a in cmd.args}
+    file = glif.defaultelpi
+    if 'f' in args and 'file' in args:
+        return Result(False, None, f'At most one view should be specified for the "{cmd.name}" command')
+    for k in ['f', 'file']:
+        if k in args:
+            file = args[k]
+            break
+    if file:
+        return Result(True, file)
+    return Result(False, None, f'No elpi file was specified for the "{cmd.name}" command')
+
+
+def filterHelper(cmd: BasicCommand):
+    def _filterHelper(glif: glif.Glif, items: Items) -> Items:
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = ['notc', 'no-typechecking'], allowedKeyValArgs = ['f', 'file'])
+        if pr:
+            return Items([]).withErrors([pr.logs])
+        typecheck = not any(arg.key in {'notc', 'no-typechecking'} for arg in cmd.args)
+        file = elpiFileExtractHelper(glif, cmd)
+        if not file.success:
+            return Items([]).withErrors([file.logs])
+        expressions = []
+        for itemid, item in enumerate(items.items):
+            s = item.content.get(Repr.SENTENCE)
+            expr = f'glif.mkItem {itemid}'
+            if s is None:
+                expr += f'glif.none '
+            else:
+                expr += f'(glif.some "{s}") '
+            for e in [item.content.get(Repr.AST), item.content.get(Repr.LOGIC_ELPI)]:
+                if e is None:
+                    expr += f'glif.none '
+                else:
+                    expr += f'(glif.some {e}) '
+            expressions.append(expr.strip() + '.')
+
+        stdin = '\n'.join(expressions + ['glif.endofitems.'])
+        assert file.value
+        r = runelpi(glif.cwd, file.value, 'glif.filter filter', typecheck, stdin)
+        if not r.success:
+            return items.withErrors(items.errors + [r.logs])
+        tokeep = []
+        output = []
+        assert r.value
+        for line in r.value[0].splitlines():
+            line = line.strip()
+            if line.startswith('filter-output:'):
+                tokeep.append(int(line[len('filter-output:'):].strip()))
+            elif line:
+                output.append(line)
+        items.items = [items.items[i] for i in tokeep]
+        items.withErrors(output)
+        return items
+
+    return _filterHelper
+
+
+
 GLIF_COMMAND_TYPES : list[CommandType] = [
             NonApplicableCommandType(['import', 'i'], importHelper),
             NonApplicableCommandType(['archive', 'a'], archiveHelper),
             OnlyApplicableCommandType(['construct', 'c'], constructHelper, Repr.AST),
+            OnlyApplicableCommandType(['filter'], filterHelper, Repr.LOGIC_ELPI),
         ]
 

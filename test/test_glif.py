@@ -56,7 +56,7 @@ class TestGlif(unittest.TestCase):
         self.assertIn('and (and (s someone (love someone)) (s someone (love everyone))) (s everyone (love someone))', strs)
 
 
-    def elpi_codecell_test(self, content: str, success: bool):
+    def elpi_codecell_test(self, content, success):
         rs = self.glif.executeCell(content)
         self.assertEqual(len(rs), 1)
         self.assertTrue(rs[0].success)   # even if the content has errors, the command should have been executed successfully

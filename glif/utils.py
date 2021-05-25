@@ -73,7 +73,7 @@ def dot2svg(dot: bytes) -> Result[bytes]:
     proc.wait()
     return Result(True, svg)
 
-def runelpi(filename: str, command: str, type_check: bool = True, stdin: str = '', args: list[str] = [], isjusttypecheck: bool = False) -> Result[tuple[str, str]]:
+def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdin: str = '', args: list[str] = [], isjusttypecheck: bool = False) -> Result[tuple[str, str]]:
     elpipath = find_executable('elpi')
     if not elpipath:
         return Result(False, None, 'Failed to locate executable "elpi"')
@@ -88,7 +88,8 @@ def runelpi(filename: str, command: str, type_check: bool = True, stdin: str = '
     proc = subprocess.Popen(call, text=True,
         stdin = subprocess.PIPE,
         stderr = subprocess.PIPE,
-        stdout = subprocess.PIPE)
+        stdout = subprocess.PIPE,
+        cwd = cwd)
     assert proc.stdin
     assert proc.stdout
     assert proc.stderr

@@ -130,10 +130,10 @@ class Glif(object):
                 if type_ in ['mmt-view', 'mmt-theory']:
                     assert archiveresult.value
                     archive, subdir = archiveresult.value
-                    fp.write(f'namespace http://mathhub.info/{archive}{"/" + subdir if subdir else ""} ❚\n\n')
+                    fp.write(f'namespace http://mathhub.info/{archive}{"/" + subdir if subdir else ""} ❚')
                 elif type_ in ['elpi', 'elpi-notc']:
-                    fp.write('accumulate glif.\n\n')
-                fp.write(code)
+                    fp.write('accumulate glif.')
+                fp.write(fileR.value[2])
                 if type_ in ['elpi', 'elpi-notc']:
                     fp.write('\n\nnamespace glifutil { type success (list string) -> prop. success _. }\n')
 
@@ -254,9 +254,13 @@ class Glif(object):
         #         os.path.join(os.path.dirname(fullpath), 'glif.elpi'))
 
         if self._typecheckelpi:
-            er = utils.runelpi(fullpath, 'glifutil.success')
+            er = utils.runelpi(self.cwd, fullpath, 'glifutil.success')
             if not er.success:
                 return Result(False, logs=er.logs)
+            assert er.value
+            warning = er.value[0].strip()   # stdout should be empty
+            if warning:
+                return Result(False, logs=warning)
 
         self.defaultelpi = fullpath
         r: Result[None] = Result(True)
