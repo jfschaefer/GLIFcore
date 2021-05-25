@@ -343,6 +343,12 @@ def importHelper(cmd: BasicCommand):
                     logs.append(f'Successfully imported {ma} to MMT')
                 else:
                     errs.append(r.logs)
+            if ma.endswith('.elpi'):
+                r = glif.importELPIfile(ma)
+                if r.success:
+                    logs.append(f'Successfully imported {ma}')
+                else:
+                    errs.append(r.logs)
         if errs:
             return Result(False, logs, '\n'.join(errs))
         else:

@@ -7,6 +7,7 @@ from glif import mmt
 from glif import utils
 from glif.utils import Result
 import os
+import shutil
 
 
 DEFAULT_ARCHIVE = 'tmpGLIF/default'
@@ -27,6 +28,9 @@ class Glif(object):
 
         self.defaultview : Optional[str] = None
 
+        # ELPI
+        self.defaultelpi : Optional[str] = None
+        self._typecheckelpi : bool = False
 
         self._archive: Optional[str] = None
         self._subdir: Optional[str] = None
@@ -127,9 +131,18 @@ class Glif(object):
                     assert archiveresult.value
                     archive, subdir = archiveresult.value
                     fp.write(f'namespace http://mathhub.info/{archive}{"/" + subdir if subdir else ""} ❚\n\n')
+                elif type_ in ['elpi', 'elpi-notc']:
+                    fp.write('accumulate glif.\n\n')
                 fp.write(code)
+                if type_ in ['elpi', 'elpi-notc']:
+                    fp.write('\n\nnamespace glifutil { type success (list string) -> prop. success _. }\n')
 
-            result = self.executeCommand(f'import "{name}.{ending}"')
+            try:
+                if type_ == 'elpi':
+                    self._typecheckelpi = True
+                result = self.executeCommand(f'import "{name}.{ending}"')
+            finally:
+                self._typecheckelpi = False
             if result.success and type_ == 'mmt-view' and self.defaultview != name:
                 if result.logs:
                     result.logs += '\n'
@@ -232,6 +245,23 @@ class Glif(object):
         else:
             return Result(False, logs=f'MMT import failed:\n{parsing.indent(mmtresult.logs)}')
         return Result(True)
+
+    def importELPIfile(self, filename: str) -> Result[None]:
+        fullpath = os.path.join(self.cwd, filename)
+
+        # using f'elpi -I {__file__}' instead
+        # shutil.copyfile(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'glif.elpi'),
+        #         os.path.join(os.path.dirname(fullpath), 'glif.elpi'))
+
+        if self._typecheckelpi:
+            er = utils.runelpi(fullpath, 'glifutil.success')
+            if not er.success:
+                return Result(False, logs=er.logs)
+
+        self.defaultelpi = fullpath
+        r: Result[None] = Result(True)
+        r.logs = f'{filename} is the new default file for ELPI commands'
+        return r
 
     def getGfShell(self) -> Result[gf.GFShellRaw]:
         if not self._gfshell and self._gfshellFailedLogs is None:

@@ -126,7 +126,7 @@ class GLIFLexer(RegexLexer):
         'root': [
             (r'(gf:|GF:)(\s+)(\w+)', bygroups(Generic.Heading, Whitespace, Name.Class), 'gf.root'),
             (r'(mmt:|MMT:)(\s+)(\w+)', bygroups(Generic.Heading, Whitespace, Name.Class), 'mmt.root'),
-            (r'(elpi:|ELPI:)(\s+)(\w+)', bygroups(Generic.Heading, Whitespace, Name.Class), 'elpi.root'),
+            (r'(elpi:|ELPI:|elpi-notc:|ELPI-NOTC:)(\s+)(\w+)', bygroups(Generic.Heading, Whitespace, Name.Class), 'elpi.root'),
         ],
     }
 

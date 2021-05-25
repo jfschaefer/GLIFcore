@@ -55,5 +55,22 @@ class TestGlif(unittest.TestCase):
         self.assertIn('and (s someone (love someone)) (and (s someone (love everyone)) (s everyone (love someone)))', strs)
         self.assertIn('and (and (s someone (love someone)) (s someone (love everyone))) (s everyone (love someone))', strs)
 
+
+    def elpi_codecell_test(self, content: str, success: bool):
+        rs = self.glif.executeCell(content)
+        self.assertEqual(len(rs), 1)
+        self.assertTrue(rs[0].success)   # even if the content has errors, the command should have been executed successfully
+        assert rs[0].value
+        if success:
+            self.assertFalse(bool(rs[0].value.errors))
+        else:
+            self.assertTrue(bool(rs[0].value.errors))
+
+    def test_elpi_codecell(self):
+        self.elpi_codecell_test('type h prop.', True)
+        self.elpi_codecell_test('elpi: test1.\ntype h prop.\nh.', True)
+        self.elpi_codecell_test('elpi-notc: test2.\nh _.', True)
+        self.elpi_codecell_test('elpi: test3.\ntype h prop.\nh _.', False)
+
 if __name__ == '__main__':
     unittest.main()

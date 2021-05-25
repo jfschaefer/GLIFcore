@@ -1,0 +1,38 @@
+namespace glif {
+    % ITEMS
+    kind item type -> type -> type.
+    type mkItem int -> string -> AstType -> LogType -> item AstType LogType.
+    type getId (item AstType LogType) -> int -> prop.
+    getId (mkItem I _ _ _) I.
+    type getStr (item AstType LogType) -> string -> prop.
+    getStr (mkItem _ S _ _) S.
+    type getAst (item AstType LogType) -> AstType -> prop.
+    getAst (mkItem _ _ A _) A.
+    type getLog (item AstType LogType) -> LogType -> prop.
+    getLog (mkItem _ _ _ L) L.
+
+
+    % READING ITEMS
+    type notanitem (item A L).   % used to indicate end of item list
+
+    type isanitem (item A L) -> prop.
+    isanitem notanitem :- !, fail.
+    isanitem (mkItem _ _ _ _).
+
+    type readitem (item A L) -> prop.
+    readitem I :- readterm std_in I, isanitem I.
+
+    type readitems (list (item A L)) -> prop.
+    readitems [I|R] :- readitem I, !, readitems R.
+    readitems [].
+
+    
+    % COMMANDS
+    type filter (item A L -> prop) -> list String -> prop.
+    filter F _Args :- readitems Items, filter_actual F Items.
+
+    type filter_actual (item A L -> prop) -> list (item A L) -> prop.
+    filter_actual F [I|_] :- F I, getId I Id, print "filter-output:" Id, fail.
+    filter_actual F [_|R] :- filter_actual F R.
+    filter_actual _ [].
+}

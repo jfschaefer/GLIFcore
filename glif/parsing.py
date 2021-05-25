@@ -236,12 +236,15 @@ def identifyFile(s: str) -> Result[tuple[str, str]]:
                     ('abstract', 'gf-abstract'), ('concrete', 'gf-concrete'), ('resource', 'gf-resource'),
                     ('interface', 'gf-interface'), ('instance', 'gf-instance'),
                     ('incomplete concrete', 'gf-incomplete concrete'),
-                    ('mmt:', 'mmt'), ('elpi:', 'elpi'), ('gf:', 'gf'),
-                    ('MMT:', 'mmt'), ('ELPI:', 'elpi'), ('GF:', 'gf'),
+                    ('mmt:', 'mmt'), ('elpi:', 'elpi'), ('elpi-notc:', 'elpi-notc'), ('gf:', 'gf'),
+                    ('MMT:', 'mmt'), ('ELPI:', 'elpi'), ('ELPI-NOTC:', 'elpi-notc'), ('GF:', 'gf'),
                     ('kind', 'elpi'), ('type', 'elpi')]:
                 n = _nextup(s, i, k)
                 if n:
-                    return Result(True, (t, parseIdentifier(s[n:].strip())[0]))
+                    s = s[n:].strip()
+                    if not s[0].isidentifier():
+                        return Result(False, None, f'Expected identifier after "{k}"')
+                    return Result(True, (t, parseIdentifier(s)[0]))
             return Result(False)
     return Result(False)
 

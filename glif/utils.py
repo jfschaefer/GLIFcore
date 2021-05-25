@@ -69,8 +69,43 @@ def dot2svg(dot: bytes) -> Result[bytes]:
     proc.stdin.write(dot)
     proc.stdin.close()
     svg = proc.stdout.read()
+    proc.stdout.close()
     proc.wait()
     return Result(True, svg)
 
+def runelpi(filename: str, command: str, type_check: bool = True, stdin: str = '', args: list[str] = [], isjusttypecheck: bool = False) -> Result[tuple[str, str]]:
+    elpipath = find_executable('elpi')
+    if not elpipath:
+        return Result(False, None, 'Failed to locate executable "elpi"')
 
+    call = [elpipath, filename, '-exec', command, '-I', os.path.realpath(os.path.dirname(__file__))]
+    if not type_check:
+        call.append('-no-tc')
+    if args:
+        call.append('--')
+        call += args
+
+    proc = subprocess.Popen(call, text=True,
+        stdin = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+        stdout = subprocess.PIPE)
+    assert proc.stdin
+    assert proc.stdout
+    assert proc.stderr
+    proc.stdin.write(stdin)
+    proc.stdin.close()
+    out = proc.stdout.read()
+    err = proc.stderr.read()
+    proc.stderr.close()
+    proc.stdout.close()
+    proc.wait()
+    # if proc.returncode not in [0,1]:   # Why should 1 be acceptable?
+    if proc.returncode:
+        if isjusttypecheck:
+            # TODO: better extract type checking errors (they are sometimes in stderr and sometimes in stdout)
+            err = err.strip()
+            return Result(False, None, 'Typecheck failed:\n' + out + ('\n' + err if not err.endswith('Data.State.Halt') else ''))
+        return Result(False, None,
+            'ELPI ERROR: ' + str(proc.returncode) + '\nOUTPUT:\n' + out + '\nERROR:\n' + err + '\nCALL:\n' + str(call))
+    return Result(True, (out, err))
 
