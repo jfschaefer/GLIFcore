@@ -76,5 +76,12 @@ class TestMMT(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertEqual(result.value['mmt'][0], '∀[x]¬∀[x/r]¬(love x x/r)')
 
+    def test_elpigen_types(self):
+        self.mh.makeSubdir(TEST_ARCHIVE, 'mini')
+        self.copyandbuild(os.path.join(os.path.dirname(__file__), 'resources', 'mmt', 'FOL.mmt'), TEST_ARCHIVE, 'mini', 'FOL.mmt')
+        result = self.mmt.elpigen('types', TEST_ARCHIVE, 'mini', 'FOL')
+        self.assertTrue(result.success)
+        self.assertTrue('type forall (ind -> prop) -> prop.' in result.value)
+
 if __name__ == '__main__':
     unittest.main()

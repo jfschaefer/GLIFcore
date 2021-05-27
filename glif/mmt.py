@@ -180,6 +180,23 @@ class MMTInterface(object):
             return Result(False, None, '\n'.join(response['errors']))
         return Result(False, None, result.logs)
 
+    def elpigen(self, mode: str, archive: str, subdir: Optional[str], theory: str,
+                meta: bool = False, includes: bool = True) -> Result[str]:
+        result = self.server.post_request('glif-elpigen',
+                json = {
+                    'theory': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{theory}',
+                    'mode': mode,
+                    'follow-meta': meta,
+                    'follow-includes': includes,
+                    'version': 2,
+                })
+        if result.success:   # request was successful
+            response: Any = result.value
+            if response['isSuccessful']:
+                return Result(True, response['result'], '\n'.join(response['errors']))
+            return Result(False, None, '\n'.join(response['errors']))
+        return Result(False, None, result.logs)
+
     def do_shutdown(self):
         self.server.do_shutdown()
 
