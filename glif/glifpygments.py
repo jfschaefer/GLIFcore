@@ -13,10 +13,7 @@ from pygments.lexer import RegexLexer, using, words, bygroups
 from pygments.token import Comment, Name, Whitespace, Generic, String, Keyword, Number, Punctuation
 
 from mmtpygments.mmt_lexer import MMTLexer
-# # import glif
-# from glif import gf
 import glif.commands as commands
-# from glif.commands import GF_COMMAND_TYPES, GLIF_COMMAND_TYPES
 
 
 class GFLexer(RegexLexer):
