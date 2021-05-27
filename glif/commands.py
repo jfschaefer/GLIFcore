@@ -2,6 +2,7 @@ from typing import Optional, Callable
 from glif.utils import Result, runelpi
 from glif.parsing import *
 from enum import Enum
+import os
 
 
 class Repr(Enum):
@@ -164,7 +165,7 @@ class GfCommand(Command):
             return Items.fromVals(self.outrepr, vals).withErrors(errs)
         else:
             return Items([]).withErrors([gfshell.logs])
-    
+
     def _applyItem(self, glif, item):
         inp = item.tryGetRepr(self.inrepr)
         assert inp.value
@@ -331,7 +332,7 @@ def wrongCommandPatternResponse(cmd: BasicCommand,
 
 
 def importHelper(cmd: BasicCommand):
-    def _importHelper(glif: glif.Glif):
+    def _importHelper(glif: glif.Glif) -> Result[list[str]]:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [], minMainargs = 1)
         if pr:
             return pr
@@ -367,7 +368,7 @@ def importHelper(cmd: BasicCommand):
 
 
 def archiveHelper(cmd: BasicCommand):
-    def _archiveHelper(glif: glif.Glif):
+    def _archiveHelper(glif: glif.Glif) -> Result[list[str]]:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [], minMainargs = 1, maxMainargs = 2)
         if pr:
             return pr
@@ -388,10 +389,11 @@ def archiveHelper(cmd: BasicCommand):
 
 def constructHelper(cmd: BasicCommand):
     def _constructHelper(glif: glif.Glif, items: Items) -> Items:
-        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [{'v', 'view'}])
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'de', 'delta-expand'}], allowedKeyValArgs = [{'v', 'view'}])
         if pr:
             return Items([]).withErrors([pr.logs])
         view = cmd.getValOrDefault({'v', 'view'}, glif.defaultview if glif.defaultview else '')
+        delta = any(arg.key in {'de', 'delta-expand'} for arg in cmd.args)
         if not view:
             return Items([]).withErrors(['No semantics construction view has been specified for the "construct" command and no default view is available.'])
 
@@ -410,7 +412,7 @@ def constructHelper(cmd: BasicCommand):
             assert s
             return s
         asts = list({ helperunwrap(item.tryGetRepr(Repr.AST).value) for item in items.items })
-        r = mmt.construct(asts, archsub.value[0], archsub.value[1], view)
+        r = mmt.construct(asts, archsub.value[0], archsub.value[1], view, deltaExpand = delta)
 
         if not r.success:
             return Items([]).withErrors(['"construct" failed.', r.logs])
@@ -479,10 +481,48 @@ def filterHelper(cmd: BasicCommand):
     return _filterHelper
 
 
+def elpigenHelper(cmd: BasicCommand):
+    def _elpigenHelper(glif: glif.Glif) -> Result[list[str]]:
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'with-meta', 'wm'}, {'no-includes', 'ni'}],
+                allowedKeyValArgs = [{'f', 'file'}, {'m', 'mode'}], minMainargs = 1, maxMainargs = 1)
+        if pr:
+            return pr
+        meta = any(arg.key in {'with-meta', 'wm'} for arg in cmd.args)
+        includes = not any(arg.key in {'no-includes', 'ni'} for arg in cmd.args)
+        mode = cmd.getValOrDefault({'m', 'mode'}, 'types')
+        if mode not in {'types', 'simpleprover'}:
+            return Result(False, [], f'Unsupported mode "{mode}"')
+        theory = cmd.mainargs[0]
+        file = cmd.getValOrDefault({'f', 'file'}, theory)
+        if not file.endswith('.elpi'):
+            file += '.elpi'
+
+        mmtr = glif.getMMT()
+        if not mmtr.success:
+            return Result(False, [], 'Failed load MMT:\n' + mmtr.logs)
+        assert mmtr.value
+        mmt = mmtr.value
+        asr = glif.getArchiveSubdir()
+        if not asr.success:
+            return Result(False, [], asr.logs)
+        assert asr.value
+        archive, subdir = asr.value
+
+        r = mmt.elpigen(mode, archive, subdir, theory, meta, includes)
+        if not r.success:
+            return Result(False, [], 'Failed to generate ELPI code:\n' + r.logs)
+        assert r.value
+        with open(os.path.join(glif.cwd, file), 'w') as f:
+            f.write(r.value)
+        return Result(True, [f'Successfully created {file}'])
+
+    return _elpigenHelper
+
 
 GLIF_COMMAND_TYPES : list[CommandType] = [
             NonApplicableCommandType(['import', 'i'], importHelper),
             NonApplicableCommandType(['archive', 'a'], archiveHelper),
+            NonApplicableCommandType(['elpigen', 'eg'], elpigenHelper),
             OnlyApplicableCommandType(['construct', 'c'], constructHelper, Repr.AST),
             OnlyApplicableCommandType(['filter'], filterHelper, Repr.LOGIC_ELPI),
         ]
