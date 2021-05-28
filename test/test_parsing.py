@@ -79,7 +79,8 @@ class TestFileIdentification(unittest.TestCase):
         r = parsing.identifyFile(content)
         if expected.success:
             self.assertTrue(r.success)
-            self.assertEqual(r.value, expected.value)
+            assert r.value
+            self.assertEqual(r.value[0:2], expected.value)
         else:
             self.assertFalse(r.success)
 

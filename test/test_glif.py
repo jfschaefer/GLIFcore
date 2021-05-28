@@ -68,9 +68,9 @@ class TestGlif(unittest.TestCase):
 
     def test_elpi_codecell(self):
         self.elpi_codecell_test('type h prop.', True)
-        self.elpi_codecell_test('elpi: test1.\ntype h prop.\nh.', True)
+        self.elpi_codecell_test('elpi: test1\ntype h prop.\nh.', True)
         self.elpi_codecell_test('elpi-notc: test2.\nh _.', True)
-        self.elpi_codecell_test('elpi: test3.\ntype h prop.\nh _.', False)
+        self.elpi_codecell_test('elpi: test3\ntype h prop.\nh _.', False)
 
 if __name__ == '__main__':
     unittest.main()

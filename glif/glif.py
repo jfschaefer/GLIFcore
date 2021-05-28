@@ -132,7 +132,7 @@ class Glif(object):
                     archive, subdir = archiveresult.value
                     fp.write(f'namespace http://mathhub.info/{archive}{"/" + subdir if subdir else ""} ❚')
                 elif type_ in ['elpi', 'elpi-notc']:
-                    fp.write('accumulate glif.')
+                    fp.write('accumulate glif. ')
                 fp.write(fileR.value[2])
                 if type_ in ['elpi', 'elpi-notc']:
                     fp.write('\n\nnamespace glifutil { type success (list string) -> prop. success _. }\n')
