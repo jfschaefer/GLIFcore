@@ -53,7 +53,7 @@ def parseCommandArg(s0: str) -> Result[tuple[CommandArgument, str]]:
     else:
         s = s[1:]
 
-    argname, s = parseIdentifier(s)
+    argname, s = parseIdentifier(s, allowMinus = True)
     if not s:
         return Result(True, (CommandArgument(argname), ''))
     if s[0] == ' ':
@@ -72,8 +72,8 @@ def parseCommandArg(s0: str) -> Result[tuple[CommandArgument, str]]:
         else:
             return Result(success = False, logs=res.logs)
         # r = parseString(s)
-    elif s[0].isidentifier() or s[0].isalnum():
-        argval, s = parseIdentifier(s, canbenum=True)
+    elif s[0].isidentifier() or s[0].isalnum() or s[0] in {'.', '/'}:
+        argval, s = parseUntilSpace(s)
         return Result(success = True, value=(CommandArgument(argname, argval), s))
     else:
         return Result(success = False, logs=f'Unexpected argument value in "{s0}"')
@@ -100,13 +100,25 @@ def parseString(s: str) -> Result[tuple[str, str]]:
         i += 1
     return Result(False, logs = f'String not closed: "{s}"')
 
-def parseIdentifier(s: str, canbenum: bool = False) -> tuple[str, str]:
+def parseUntilSpace(s: str) -> tuple[str, str]:
+    assert s
+    result = s[0]
+    i = 1
+    while i < len(s):
+        if s[i].isspace():
+            return (result, s[i:])
+        else:
+            result += s[i]
+            i += 1
+    return (result, '')
+
+def parseIdentifier(s: str, canbenum: bool = False, allowMinus: bool = False) -> tuple[str, str]:
     assert s
     assert s[0].isidentifier() or (canbenum and s[0].isalnum) or s[0] == '?'   # ? for user-defined macros
     identifier = s[0]
     i = 1
     while i < len(s):
-        if s[i].isalnum() or s[i].isidentifier():  # not '7'.isidentifier()
+        if s[i].isalnum() or s[i].isidentifier() or (allowMinus and s[i] == '-'):  # not '7'.isidentifier()
             identifier += s[i]
             i += 1
         else:

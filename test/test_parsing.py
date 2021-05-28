@@ -59,6 +59,8 @@ class TestCommandParsing(unittest.TestCase):
         self.parseBCtest('c -arg="value"', 'c', [('arg', 'value')])
         self.parseBCtest('c -bracket', 'c', [('bracket', '')])
         self.parseBCtest('c -depth=3', 'c', [('depth', '3')])
+        self.parseBCtest('c -ignore-includes', 'c', [('ignore-includes', '')])
+        self.parseBCtest('c -file=input.txt', 'c', [('file', 'input.txt')])
 
     def test_escape(self):
         self.parseBCtest('parse "\\""', 'parse', [], ['"'])
