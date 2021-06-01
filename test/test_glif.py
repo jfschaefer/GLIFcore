@@ -1,4 +1,4 @@
-from glif import glif
+from glif import Glif
 from typing import Optional
 import unittest
 import os
@@ -9,7 +9,7 @@ TEST_ARCHIVE = 'tmpGLIF/test'
 class TestGlif(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.glif = glif.Glif()
+        cls.glif = Glif()
 
         # copy files
         cls.glif.mh.makeSubdir(TEST_ARCHIVE, 'mini')

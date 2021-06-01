@@ -1,6 +1,6 @@
 import unittest
 from glif import parsing
-from glif import glif
+from glif import Glif
 from glif import commands
 from glif import utils
 

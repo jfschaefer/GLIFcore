@@ -1,10 +1,10 @@
 from typing import Optional
 from distutils.spawn import find_executable
-from glif import gf
-from glif import commands as cmd
-from glif import parsing
-from glif import mmt
-from glif import utils
+import glif.gf as gf
+import glif.commands as cmd
+import glif.parsing as parsing
+import glif.mmt as mmt
+import glif.utils as utils
 from glif.utils import Result
 import os
 import shutil

@@ -91,18 +91,18 @@ class Items(object):
         return items
 
 
-from glif import glif
+import glif.Glif as Glif
 
 class Command(object):
     is_executable: bool = False
     is_applicable: bool = False
 
-    def execute(self, glif: 'glif.Glif') -> Items:
+    def execute(self, glif: 'Glif.Glif') -> Items:
         ''' If no input is/can provided '''
         assert self.is_executable
         return Items([])
 
-    def apply(self, glif: 'glif.Glif', items: Items) -> Items:
+    def apply(self, glif: 'Glif.Glif', items: Items) -> Items:
         ''' If input is provided (`items`) '''
         assert self.is_applicable
         newItems = Items([])
@@ -111,7 +111,7 @@ class Command(object):
             newItems.merge(self._applyItem(glif, item))
         return newItems
 
-    def _applyItem(self, glif: 'glif.Glif', item: Item) -> Items:
+    def _applyItem(self, glif: 'Glif.Glif', item: Item) -> Items:
         raise NotImplementedError()
 
 
@@ -212,7 +212,7 @@ GF_COMMAND_TYPES: list[GfCommandType] = [
 # GLIF COMMANDS
 
 class NonApplicableCommand(Command):
-    def __init__(self, f: Callable[['glif.Glif'], Result[list[str]]], outrepr: Repr = Repr.DEFAULT):
+    def __init__(self, f: Callable[['Glif.Glif'], Result[list[str]]], outrepr: Repr = Repr.DEFAULT):
         self.f = f
         self.outrepr = outrepr
 
@@ -228,7 +228,7 @@ class NonApplicableCommand(Command):
 
 class NonApplicableCommandType(CommandType):
     def __init__(self, names: list[str],
-            fgen: Callable[[BasicCommand], Callable[['glif.Glif'], Result[list[str]]]],
+            fgen: Callable[[BasicCommand], Callable[['Glif.Glif'], Result[list[str]]]],
             outrepr : Repr = Repr.DEFAULT):
         CommandType.__init__(self, names)
         self.fgen = fgen
@@ -246,7 +246,7 @@ class NonApplicableCommandType(CommandType):
 
 
 class OnlyApplicableCommand(Command):
-    def __init__(self, f: Callable[['glif.Glif', Items], Items], mainArgs: Optional[Items]):
+    def __init__(self, f: Callable[['Glif.Glif', Items], Items], mainArgs: Optional[Items]):
         self.f = f
         self.mainArgs = mainArgs
         if self.mainArgs:
@@ -269,7 +269,7 @@ class OnlyApplicableCommand(Command):
 
 
 class OnlyApplicableCommandType(CommandType):
-    def __init__(self, names: list[str], fgen: Callable[[BasicCommand], Callable[['glif.Glif', Items], Items]], argRepr: Repr):
+    def __init__(self, names: list[str], fgen: Callable[[BasicCommand], Callable[['Glif.Glif', Items], Items]], argRepr: Repr):
         CommandType.__init__(self, names)
         self.fgen = fgen
         self.argRepr = argRepr
@@ -332,7 +332,7 @@ def wrongCommandPatternResponse(cmd: BasicCommand,
 
 
 def importHelper(cmd: BasicCommand):
-    def _importHelper(glif: glif.Glif) -> Result[list[str]]:
+    def _importHelper(glif: Glif.Glif) -> Result[list[str]]:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [], minMainargs = 1)
         if pr:
             return pr
@@ -368,7 +368,7 @@ def importHelper(cmd: BasicCommand):
 
 
 def archiveHelper(cmd: BasicCommand):
-    def _archiveHelper(glif: glif.Glif) -> Result[list[str]]:
+    def _archiveHelper(glif: Glif.Glif) -> Result[list[str]]:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [], allowedKeyValArgs = [], minMainargs = 1, maxMainargs = 2)
         if pr:
             return pr
@@ -388,7 +388,7 @@ def archiveHelper(cmd: BasicCommand):
     return _archiveHelper
 
 def constructHelper(cmd: BasicCommand):
-    def _constructHelper(glif: glif.Glif, items: Items) -> Items:
+    def _constructHelper(glif: Glif.Glif, items: Items) -> Items:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'de', 'delta-expand'}], allowedKeyValArgs = [{'v', 'view'}])
         if pr:
             return Items([]).withErrors([pr.logs])
@@ -435,7 +435,7 @@ def constructHelper(cmd: BasicCommand):
     return _constructHelper
 
 def filterHelper(cmd: BasicCommand):
-    def _filterHelper(glif: glif.Glif, items: Items) -> Items:
+    def _filterHelper(glif: Glif.Glif, items: Items) -> Items:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'notc', 'no-typechecking'}], allowedKeyValArgs = [{'f', 'file'}, {'p', 'predicate'}])
         if pr:
             return Items([]).withErrors([pr.logs])
@@ -482,7 +482,7 @@ def filterHelper(cmd: BasicCommand):
 
 
 def elpigenHelper(cmd: BasicCommand):
-    def _elpigenHelper(glif: glif.Glif) -> Result[list[str]]:
+    def _elpigenHelper(glif: Glif.Glif) -> Result[list[str]]:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'with-meta', 'wm'}, {'no-includes', 'ni'}],
                 allowedKeyValArgs = [{'f', 'file'}, {'m', 'mode'}], minMainargs = 1, maxMainargs = 1)
         if pr:
