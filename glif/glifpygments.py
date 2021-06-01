@@ -62,12 +62,15 @@ class GLIFCommandLexer(RegexLexer):
     codemirror_name = 'GLIFCommand'
     rouge_original_source = '...'
 
+    glifcommands = [name for cmdt in commands.GF_COMMAND_TYPES + commands.GLIF_COMMAND_TYPES for name in cmdt.names]
+
     tokens = {
         'root': [
             (r'(--|#|\/\/|%).*$', Comment.Single),
             (r'(--|#|\/\/|%).*$', Comment.Single),
-            (words((name for cmdt in commands.GF_COMMAND_TYPES + commands.GLIF_COMMAND_TYPES for name in cmdt.names), suffix=r'\b').get(),
-                Keyword, 'incommand'),
+            (words(glifcommands, suffix=r'$').get(), Keyword, 'root'),
+            (words(glifcommands, suffix=r'\b').get(), Keyword, 'incommand'),
+            (r'"([^"]|(\\"))*"$', String, 'root'),
             (r'"([^"]|(\\"))*"', String, 'incommand'),   # lines starting with a string must still be part of the previous command
             (r'\w+', Generic.Error, 'incommand'),  # unknown command?
         ],
@@ -136,7 +139,7 @@ class GLIFLexer(RegexLexer):
         return False
     importRootRef(tokens, MMTLexer.tokens, mmttest, 'mmt.')
     importRootRef(tokens, ELPILexer.tokens, lambda e : 'accumulate' in e[0], 'elpi.')
-    importRootRef(tokens, GLIFCommandLexer.tokens, lambda e : len(e) == 3 and e[2] == 'incommand', 'cmd.')
+    importRootRef(tokens, GLIFCommandLexer.tokens, lambda e : len(e) == 3 and e[2] in {'incommand', 'root'}, 'cmd.')
 
     importTokens(tokens, GFLexer.tokens, 'gf.')
     importTokens(tokens, MMTLexer.tokens, 'mmt.')
