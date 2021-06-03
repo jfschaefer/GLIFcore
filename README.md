@@ -9,7 +9,7 @@ In the future, command line tools for using GLIF may be added.
 For beginners it is recommended to use the [Jupyter interface for GLIF](https://github.com/jfschaefer/GLIFKernel)
 
 
-#### Installation
+## Installation
 **Note:** If you only want to use the Jupyter interface, you may follow the instructions for the [GLIFkernel repository](https://github.com/jfschaefer/GLIFKernel).
 
 Requirements:
@@ -34,7 +34,7 @@ pip install .
 ```
 
 
-#### Development
+## Development
 To run all unittest, execute the following command in the root folder of the repository:
 ```
 python -m unittest discover -v
