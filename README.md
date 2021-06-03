@@ -1,7 +1,7 @@
 GLIF Core
 =========
 
-*This is an on-going effort to re-implement [https://github.com/kwarc/glif](GLIF) independently of Jupyter and add new features.*
+*This is an on-going effort to re-implement [GLIF](https://github.com/kwarc/glif) independently of Jupyter and add new features.*
 
 This repository contains the `glif` package.
 It enables the user to access GLIF's functionality using Python.
