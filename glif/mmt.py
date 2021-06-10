@@ -95,11 +95,12 @@ class MMTServer(object):
         self.mmtlogstart: list[str] = []
         self.mmtlogtail: list[str] = []
 
-        # wait until server started
-        for line in self.infile:
-            self.mmtlogstart.append(line)
-            if 'Server started at' in line:
-                break
+        # # wait until server started
+        # for line in self.infile:
+        #     # TODO: Timeout!!!
+        #     self.mmtlogstart.append(line)
+        #     if 'Server started at' in line:
+        #         break
         self.mmtlogthread = threading.Thread(target=self.__updateMMTlogs)
         self.mmtlogthread.start()
         
