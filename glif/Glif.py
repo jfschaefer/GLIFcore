@@ -126,7 +126,7 @@ class Glif(object):
             archiveresult = self.getArchiveSubdir()
             if ending == 'mmt' and not archiveresult.success:
                 return [Result(False, None, archiveresult.logs)]
-            with open(os.path.join(self.cwd, f'{name}.{ending}'), 'w') as fp:
+            with open(os.path.join(self.cwd, f'{name}.{ending}'), 'w', encoding='utf8') as fp:
                 if type_ in ['mmt-view', 'mmt-theory']:
                     assert archiveresult.value
                     archive, subdir = archiveresult.value
@@ -234,7 +234,7 @@ class Glif(object):
                     success = False
                 else:
                     assert rrr.value
-                    with open(os.path.join(self.cwd, os.path.splitext(filename)[0]+'.elpi'), 'w') as fp:
+                    with open(os.path.join(self.cwd, os.path.splitext(filename)[0]+'.elpi'), 'w', encoding='utf8') as fp:
                         fp.write(rrr.value)
         else:
             success = False
