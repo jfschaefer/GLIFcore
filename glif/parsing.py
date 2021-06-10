@@ -235,7 +235,9 @@ def _skipto(s, i, s2):
 def identifyFile(s: str) -> Result[tuple[str, str, str]]:   # (type, name, content)
     i = 0
     while True:
-        if s[i].isspace():
+        if i >= len(s):
+            return Result(False)
+        elif s[i].isspace():
             i += 1
         elif _nextup(s, i, '//'):  # mmt comment
             i = _skipto(s, i, '❚')

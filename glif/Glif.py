@@ -103,7 +103,7 @@ class Glif(object):
     def getMMT(self) -> Result[mmt.MMTInterface]:
         if self._mmt:
             return Result(True, self._mmt)
-        if not self.mmtjar and self.mh:
+        if not (self.mmtjar and self.mh):
             return Result(False, logs = '\n'.join(self._findMMTlogs))
         assert self.mmtjar
         assert self.mh
@@ -227,6 +227,15 @@ class Glif(object):
                                               # TODO: Find a better solution!
                 logs.append(f'MMT import failed:\n{parsing.indent(rr.logs)}')
                 success = False
+            if rr.success:
+                rrr = mmt.elpigen('types', self._archive, self._subdir, filename + '/' + os.path.splitext(os.path.basename(filename))[0])
+                if not rrr.success:
+                    logs.append(f'ELPI export failed:\n{parsing.indent(rrr.logs)}')
+                    success = False
+                else:
+                    assert rrr.value
+                    with open(os.path.join(self.cwd, os.path.splitext(filename)[0]+'.elpi'), 'w') as fp:
+                        fp.write(rrr.value)
         else:
             success = False
             logs.append(f'MMT import failed:\n{parsing.indent(mmtresult.logs)}')

@@ -11,6 +11,7 @@ setup(
     install_requires=[
         'setuptools>=46',
         'requests>=2.23',
+        'simplejson',
     ],
     classifiers=[       # https://pypi.org/pypi?%3Aaction=list_classifiers
         'Development Status :: 1 - Planning',

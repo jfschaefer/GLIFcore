@@ -6,21 +6,23 @@ namespace glif {
 
     % ITEMS
     kind item type -> type -> type.
-    type mkItem int -> (option string) -> (option AstType) -> (option LogType) -> item AstType LogType.
+    type mkItem int -> int -> (option string) -> (option AstType) -> (option LogType) -> item AstType LogType.
     type getId (item AstType LogType) -> int -> prop.
-    getId (mkItem I _ _ _) I.
+    getId (mkItem I _ _ _ _) I.
+    type getSenteceId (item AstType LogType) -> int -> prop.
+    getSenteceId (mkItem _ I _ _ _) I.
     type getStr (item AstType LogType) -> string -> prop.
-    getStr (mkItem _ (some S) _ _) S.
+    getStr (mkItem _ _ (some S) _ _) S.
     type getStrOpt (item AstType LogType) -> (option string) -> prop.
-    getStrOpt (mkItem _ S _ _) S.
+    getStrOpt (mkItem _ _ S _ _) S.
     type getAst (item AstType LogType) -> AstType -> prop.
-    getAst (mkItem _ _ (some A) _) A.
+    getAst (mkItem _ _ _ (some A) _) A.
     type getAstOpt (item AstType LogType) -> (option AstType) -> prop.
-    getAstOpt (mkItem _ _ A _) A.
+    getAstOpt (mkItem _ _ _ A _) A.
     type getLog (item AstType LogType) -> LogType -> prop.
-    getLog (mkItem _ _ _ (some L)) L.
+    getLog (mkItem _ _ _ _ (some L)) L.
     type getLogOpt (item AstType LogType) -> (option LogType) -> prop.
-    getLogOpt (mkItem _ _ _ L) L.
+    getLogOpt (mkItem _ _ _ _ L) L.
 
 
     % READING ITEMS
@@ -28,7 +30,7 @@ namespace glif {
 
     type isanitem (item A L) -> prop.
     isanitem endofitems :- !, fail.
-    isanitem (mkItem _ _ _ _).
+    isanitem (mkItem _ _ _ _ _).
 
     type readitem (item A L) -> prop.
     readitem I :-

@@ -1,0 +1,13 @@
+// adsf
+"abc"
+p -lang=Eng "Kim is Ahmed's cousin and the father of Grace"
+p -lang=Eng "Kim is Ahmed's cousin and the father of Grace" | construct 
+p -lang=Eng "Kim is Ahmed's cousin and the father of Grace" | construct -de
+p -lang=Eng "Kim is Ahmed's cousin and the father of Grace" | construct -de | filter -notc -predicate=check |
+    linearize -lang=Ger
+p -lang=Eng "Kim is Ahmed's cousin and the father of Grace" | construct -de | filter -notc -predicate=check | vt
+p -lang=Eng "Kim is Ahmed's cousin and the father of Grace" | construct -de | filter -notc -predicate=check | vt
+p
+    "abc"
+p
+

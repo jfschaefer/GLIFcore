@@ -342,13 +342,13 @@ def importHelper(cmd: BasicCommand):
             if ma.endswith('.gf'):
                 r = glif.importGFfile(ma)
                 if r.success:
-                    logs.append(f'Successfully imported {ma} to GF')
+                    logs.append(f'Successfully imported {ma}')
                 else:
                     errs.append(r.logs)
-            if ma.endswith('.mmt') or ma.endswith('.gf'):
+            if ma.endswith('.mmt'):
                 r = glif.importMMTfile(ma)
                 if r.success:
-                    logs.append(f'Successfully imported {ma} to MMT')
+                    logs.append(f'Successfully imported {ma}')
                 else:
                     errs.append(r.logs)
             if ma.endswith('.elpi'):
@@ -389,11 +389,12 @@ def archiveHelper(cmd: BasicCommand):
 
 def constructHelper(cmd: BasicCommand):
     def _constructHelper(glif: Glif.Glif, items: Items) -> Items:
-        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'de', 'delta-expand'}], allowedKeyValArgs = [{'v', 'view'}])
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'de', 'delta-expand'}, {'no-simplify'}], allowedKeyValArgs = [{'v', 'view'}])
         if pr:
             return Items([]).withErrors([pr.logs])
         view = cmd.getValOrDefault({'v', 'view'}, glif.defaultview if glif.defaultview else '')
         delta = any(arg.key in {'de', 'delta-expand'} for arg in cmd.args)
+        simplify = not any(arg.key in {'no-simplify'} for arg in cmd.args)
         if not view:
             return Items([]).withErrors(['No semantics construction view has been specified for the "construct" command and no default view is available.'])
 
@@ -412,7 +413,7 @@ def constructHelper(cmd: BasicCommand):
             assert s
             return s
         asts = list({ helperunwrap(item.tryGetRepr(Repr.AST).value) for item in items.items })
-        r = mmt.construct(asts, archsub.value[0], archsub.value[1], view, deltaExpand = delta)
+        r = mmt.construct(asts, archsub.value[0], archsub.value[1], view, deltaExpand = delta, simplify = simplify)
 
         if not r.success:
             return Items([]).withErrors(['"construct" failed.', r.logs])
@@ -448,8 +449,8 @@ def filterHelper(cmd: BasicCommand):
         predicate = cmd.getValOrDefault({'p', 'predicate'}, 'filter')
         expressions = []
         for itemid, item in enumerate(items.items):
+            expr = f'glif.mkItem {itemid} {item.original_id} '
             s = item.content.get(Repr.SENTENCE)
-            expr = f'glif.mkItem {itemid}'
             if s is None:
                 expr += f'glif.none '
             else:
