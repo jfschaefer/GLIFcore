@@ -124,7 +124,7 @@ class MMTServer(object):
         self.mmtlogthread.join()
 
     def post_request(self, extension: str, json: Any) -> Result[Any]:
-        url = f'http://localhost:{self.port}/:{extension}'
+        url = f'http://127.0.0.1:{self.port}/:{extension}'
         try:
             response = requests.post(url, json = json)
         except requests.exceptions.ConnectionError:
