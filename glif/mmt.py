@@ -12,6 +12,7 @@ from typing import Optional, Any
 GLIF_BUILD_EXTENSION      = 'info.kwarc.mmt.glf.GlfBuildServer'
 GLIF_CONSTRUCT_EXTENSION  = 'info.kwarc.mmt.glf.GlfConstructServer'
 ELPI_GENERATION_EXTENSION = 'info.kwarc.mmt.glf.ElpiGenerationServer'
+MMT_STARTUP_TIMEOUT       = 20
 
 
 
@@ -81,26 +82,50 @@ class MathHub(object):
             return os.path.join(self.archives[archive], 'source', subdir.replace('/', os.path.sep), filename)
         return os.path.join(self.archives[archive], 'source', filename)
 
+class MMTStartupException(Exception):
+    def __init__(self, message, logs):
+        Exception.__init__(self, message)
+        self.message = message
+        self.logs = logs
 
 class MMTServer(object):
     def __init__(self, mmt_jar: str):
         self.port = utils.find_free_port()
         extensions = [GLIF_BUILD_EXTENSION, GLIF_CONSTRUCT_EXTENSION, ELPI_GENERATION_EXTENSION]
-        cmds = ['extension ' + e for e in extensions] + ['server on ' + str(self.port)]
+        cmds = ['show version'] + ['extension ' + e for e in extensions] + ['server on ' + str(self.port)]
         args = ['java', '-jar', mmt_jar, '--keepalive', '--shell', ' ; '.join(cmds)]
         pipe = os.pipe()
-        self.mmt = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=pipe[1], stderr=pipe[1], text=True)
+        self.mmt = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=pipe[1], stderr=pipe[1], text=True, shell=False)
         self.infile = os.fdopen(pipe[0])
         self.outfd = pipe[1]
         self.mmtlogstart: list[str] = []
         self.mmtlogtail: list[str] = []
 
-        # # wait until server started
-        # for line in self.infile:
-        #     # TODO: Timeout!!!
-        #     self.mmtlogstart.append(line)
-        #     if 'Server started at' in line:
-        #         break
+        self.serverStarted = False
+        def startServer():
+            for line in self.infile:
+                self.mmtlogstart.append(line)
+                if 'Server started at' in line:
+                    self.serverStarted = True
+                    break
+                if 'error:' in line:
+                    break
+
+        start_thread = threading.Thread(target=startServer)
+        start_thread.start()
+        start_thread.join(timeout=MMT_STARTUP_TIMEOUT)
+
+        if not self.serverStarted:
+            assert self.mmt.stdin
+            self.mmt.stdin.close()
+            os.fdopen(self.outfd).close()
+            self.mmt.terminate()   # TODO: This doesn't seem to kill the process...
+            if start_thread.is_alive():
+                start_thread.join()
+                raise MMTStartupException(f'MMT startup timed out after {MMT_STARTUP_TIMEOUT} seconds', self.mmtlogstart)
+            else:
+                raise MMTStartupException(f'Failed to start MMT', self.mmtlogstart)
+
         self.mmtlogthread = threading.Thread(target=self.__updateMMTlogs)
         self.mmtlogthread.start()
         
@@ -116,7 +141,7 @@ class MMTServer(object):
 
 
     def do_shutdown(self):
-        """ Shuts down the MMT server and the MMT shell """
+        ''' Shuts down the MMT server and the MMT shell '''
         self.mmt.stdin.write('server off\nexit\n')
         self.mmt.stdin.close()
         self.mmt.kill()
