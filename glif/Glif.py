@@ -24,6 +24,8 @@ class Glif(object):
         self.mh: Optional[mmt.MathHub] = None
         self._mmt: Optional[mmt.MMTInterface] = None
         self._findMMTlogs: list[str] = []
+        self._mmtFailedStartupLogs: list[str] = []
+        self._mmtFailedStartupMessage: Optional[str] = None
         self._initMMTLocation()
 
         self.defaultview : Optional[str] = None
@@ -92,8 +94,8 @@ class Glif(object):
         self.mmtjar = mmtjar.value
 
         # MH
-        self._findMMTlogs.append('Finding MathHub: "' + mmtjar.logs + '"')
         mhdir = utils.find_mathhub_dir(self.mmtjar)
+        self._findMMTlogs.append('Finding MathHub: "' + mhdir.logs + '"')
         if not mhdir.success:
             return
         assert mhdir.value
@@ -107,7 +109,12 @@ class Glif(object):
             return Result(False, logs = '\n'.join(self._findMMTlogs))
         assert self.mmtjar
         assert self.mh
-        self._mmt = mmt.MMTInterface(self.mmtjar, self.mh)
+        try:
+            self._mmt = mmt.MMTInterface(self.mmtjar, self.mh)
+        except mmt.MMTStartupException as ex:
+            self._mmtFailedStartupLogs = ex.logs
+            self._mmtFailedStartupMessage = ex.message
+            return Result(False, logs=ex.message)
         return Result(True, self._mmt)
 
     def _loadInitialCommands(self):

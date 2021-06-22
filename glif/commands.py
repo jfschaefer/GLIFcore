@@ -3,10 +3,14 @@ from glif.utils import Result, runelpi
 from glif.parsing import *
 from enum import Enum
 import os
+import html
+from distutils.spawn import find_executable
+import subprocess
 
 
 class Repr(Enum):
     ''' Different representations of item content '''
+    HTML           = 'html'                         # HTML representation (available for certain GLIF commands), has to coincide with DEFAULT
     DEFAULT        = 'default'
     SENTENCE_ORIG  = 'original sentence'
     SENTENCE       = 'current sentence'
@@ -35,12 +39,17 @@ class Item(object):
             message += '\nAvailable representations: ' + ' '.join([f'[{rr}]' for rr in self.content])
             return Result(False, self.content[Repr.DEFAULT], '\n'.join(self.errors + [message]))
 
-    def withRepr(self, r: Repr, val: str, updateDefault: bool = True) -> 'Item':
+    def withRepr(self, r: Repr, val: str, updateDefault: bool = True, htmlVersion: Optional[str] = None) -> 'Item':
         ''' doesn't clone! '''
+        assert r != Repr.HTML
         if updateDefault:
             self.content[Repr.DEFAULT] = val
         self.content[r] = val
         self.currentRepr = r
+        if htmlVersion:
+            self.content[Repr.HTML] = htmlVersion
+        elif Repr.HTML in self.content:
+            del self.content[Repr.HTML]
         return self
 
     def getClone(self) -> 'Item':
@@ -49,6 +58,16 @@ class Item(object):
         i.content = self.content.copy()
         return i
 
+    def html(self) -> str:
+        s = ''
+        if Repr.HTML in self.content:
+            s += self.content[Repr.HTML]
+        elif Repr.DEFAULT in self.content:
+            s += '<span class="glif-stdout">' + html.escape(self.content[Repr.DEFAULT]).replace('\n', '<br/>') + '</span>'
+        if self.errors:
+            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'
+        return s
+
     def __str__(self):
         if not Repr.DEFAULT in self.content:
             return '[Item has no default representation]'
@@ -56,7 +75,6 @@ class Item(object):
         if self.errors:
             return 'Errors:\n    ' + '\n    '.join(self.errors) + '\n' + s
         return s
-
 
 
 
@@ -83,6 +101,12 @@ class Items(object):
     def withErrors(self, errors: list[str]) -> 'Items':
         self.errors = self.errors + errors
         return self
+
+    def html(self) -> str:
+        s = '<br/>'.join([i.html() for i in self.items])
+        if self.errors:
+            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'
+        return s
 
     def __str__(self):
         items = '\n'.join([str(item) for item in self.items])
@@ -387,6 +411,72 @@ def archiveHelper(cmd: BasicCommand):
 
     return _archiveHelper
 
+def statusHelper(cmd: BasicCommand):
+    def _statusHelper(glif: Glif.Glif) -> Result[list[str]]:
+        pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'load-gf'}, {'load-mmt'}, {'gf-logs'}, {'mmt-logs'}],
+                allowedKeyValArgs = [], minMainargs = 0, maxMainargs = 0)
+        loadgf = any(arg.key in {'load-gf'} for arg in cmd.args)
+        loadmmt = any(arg.key in {'load-mmt'} for arg in cmd.args)
+        gflogs = any(arg.key in {'gf-logs'} for arg in cmd.args)
+        mmtlogs = any(arg.key in {'mmt-logs'} for arg in cmd.args)
+
+        result = ['Current working directory: ' + glif.cwd]
+
+        # GF
+        if loadgf:
+            glif.getGfShell()
+        result.append('')
+        result.append('GF STATUS')
+        if glif._gfshell:
+            result.append('GF is running')
+            if gflogs:
+                result.append('GF LOGS')
+                result.append(glif._gfshell.initialOutput)
+        else:
+            result.append('GF is not running')
+            if glif._gfshellFailedLogs:
+                result.append(glif._gfshellFailedLogs)
+        
+        # MMT
+        if loadmmt:
+            glif.getMMT()
+        result.append('')
+        result.append('MMT STATUS')
+        if glif._mmt:
+            result.append(f'MMT is running on port {glif._mmt.server.port}')
+        else:
+            result.append(f'MMT is not running')
+        result.append('Logs from initialization')
+        result += glif._findMMTlogs
+        if glif._mmtFailedStartupMessage:
+            result.append(glif._mmtFailedStartupMessage)
+        if mmtlogs:
+            result.append('MMT STARTUP LOGS')
+            if glif._mmt:
+                result += glif._mmt.server.mmtlogstart
+                result.append('MMT MOST RECENT LOGS')
+                result += glif._mmt.server.mmtlogtail
+            else:
+                result += glif._mmtFailedStartupLogs
+        
+        # ELPI
+        result.append('')
+        result.append('ELPI STATUS')
+        elpipath = find_executable('elpi')
+        if not elpipath:
+            result.append('Failed to locate executable "elpi"')
+        else:
+            result.append('ELPI location: ' + elpipath)
+            try:
+                result.append('ELPI version: ' + subprocess.check_output([elpipath, '-version'], text=True).strip())
+            except:
+                result.append('"elpi -version" failed')
+
+        return Result(True, result)
+
+    return _statusHelper
+
+
 def constructHelper(cmd: BasicCommand):
     def _constructHelper(glif: Glif.Glif, items: Items) -> Items:
         pr = wrongCommandPatternResponse(cmd, allowedKeyArgs = [{'de', 'delta-expand'}, {'no-simplify'}], allowedKeyValArgs = [{'v', 'view'}])
@@ -524,6 +614,7 @@ GLIF_COMMAND_TYPES : list[CommandType] = [
             NonApplicableCommandType(['import', 'i'], importHelper),
             NonApplicableCommandType(['archive', 'a'], archiveHelper),
             NonApplicableCommandType(['elpigen', 'eg'], elpigenHelper),
+            NonApplicableCommandType(['status'], statusHelper),
             OnlyApplicableCommandType(['construct', 'c'], constructHelper, Repr.AST),
             OnlyApplicableCommandType(['filter'], filterHelper, Repr.LOGIC_ELPI),
         ]
