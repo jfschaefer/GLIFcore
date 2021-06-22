@@ -369,13 +369,13 @@ def importHelper(cmd: BasicCommand):
                     logs.append(f'Successfully imported {ma}')
                 else:
                     errs.append(r.logs)
-            if ma.endswith('.mmt'):
+            elif ma.endswith('.mmt'):
                 r = glif.importMMTfile(ma)
                 if r.success:
                     logs.append(f'Successfully imported {ma}')
                 else:
                     errs.append(r.logs)
-            if ma.endswith('.elpi'):
+            elif ma.endswith('.elpi'):
                 r = glif.importELPIfile(ma)
                 if r.success:
                     logs.append(f'Successfully imported {ma}')
@@ -383,6 +383,8 @@ def importHelper(cmd: BasicCommand):
                         logs.append(r.logs)
                 else:
                     errs.append(r.logs)
+            else:
+                errs.append(f'Unknown file extension')
         if errs:
             return Result(False, logs, '\n'.join(errs))
         else:
