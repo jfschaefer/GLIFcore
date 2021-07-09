@@ -183,7 +183,7 @@ class GfCommand(Command):
         gfshell = glif.getGfShell()
         if gfshell.success:
             assert gfshell.value
-            output = gfshell.handle_command(bc.gfFormat(None))
+            output = gfshell.value.handle_command(self.bc.gfFormat(None))
             # TODO: better output handling
             vals, errs = self.handleShellOutput(output)
             return Items.fromVals(self.outrepr, vals).withErrors(errs)
@@ -230,6 +230,9 @@ GF_COMMAND_TYPES: list[GfCommandType] = [
         GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
         GfCommandType(['linearize', 'l'], Repr.AST, Repr.SENTENCE),
         GfCommandType(['visualize_tree', 'vt'], Repr.AST, Repr.GRAPH_DOT),
+        GfCommandType(['visualize_parse', 'vp'], Repr.AST, Repr.GRAPH_DOT),
+        # TODO: the following commands cannot be applied (only executed)
+        GfCommandType(['generate_random', 'gr'], Repr.DEFAULT, Repr.AST),
 ]
 
 

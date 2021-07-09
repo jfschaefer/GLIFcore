@@ -38,6 +38,7 @@ class TestGlif(unittest.TestCase):
         self.command_test('import MiniGrammar.gf MiniGrammarEng.gf')
         self.command_test('i MiniGrammarSemantics.mmt')
         self.command_test('parse -cat=S "someone loves someone"', output='s someone (love someone)')
+        self.command_test('generate_random')   # tests GF execute command
 
         r = self.glif.executeCommand('ps "Hello World" | ps -unchars')
         self.assertEqual(str(r.value), 'HelloWorld')
