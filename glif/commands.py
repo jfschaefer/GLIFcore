@@ -228,6 +228,7 @@ class GfCommandType(CommandType):
 GF_COMMAND_TYPES: list[GfCommandType] = [
         GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST),
         GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
+        GfCommandType(['put_tree', 'pt'], Repr.AST, Repr.AST),      # TODO: some arguments probably won't work (e.g. `-smallest`)
         GfCommandType(['linearize', 'l'], Repr.AST, Repr.SENTENCE),
         GfCommandType(['visualize_tree', 'vt'], Repr.AST, Repr.GRAPH_DOT),
         GfCommandType(['visualize_parse', 'vp'], Repr.AST, Repr.GRAPH_DOT),
