@@ -50,20 +50,20 @@ class Glif(object):
         if not self.mh:
             return Result(False, None, 'Error: MathHub folder not found\nLogs:' + parsing.indent('\n'.join(self._findMMTlogs)))
         logs = []
+        newArchiveCreated = False
         if archive not in self.mh.archives:
             if create:
                 r = self.mh.makeArchive(archive)
                 if not r.success:
                     return Result(False, None, f'Error: Failed to create archive {archive}:' + parsing.indent(r.logs))
                 logs.append(f'Successfully created archive {archive}')
+                newArchiveCreated = True
             else:
                 return Result(False, None, f'Error: Archive {archive} doesn\'t exist')
-        newArchiveCreated = False
         if subdir and not self.mh.existsSubdir(archive, subdir):
             if create:
                 assert self.mh.makeSubdir(archive, subdir).success
                 logs.append(f'Successfully created directory {subdir} in archive {archive}')
-                newArchiveCreated = True
             else:
                 return Result(False, None, f'Error: Archive {archive} doesn\'t have a directory {subdir}')
 
