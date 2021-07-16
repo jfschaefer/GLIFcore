@@ -58,10 +58,12 @@ class Glif(object):
                 logs.append(f'Successfully created archive {archive}')
             else:
                 return Result(False, None, f'Error: Archive {archive} doesn\'t exist')
+        newArchiveCreated = False
         if subdir and not self.mh.existsSubdir(archive, subdir):
             if create:
                 assert self.mh.makeSubdir(archive, subdir).success
                 logs.append(f'Successfully created directory {subdir} in archive {archive}')
+                newArchiveCreated = True
             else:
                 return Result(False, None, f'Error: Archive {archive} doesn\'t have a directory {subdir}')
 
@@ -71,6 +73,12 @@ class Glif(object):
             self.cwd = os.path.join(self.mh.archives[self._archive], 'source', self._subdir)
         else:
             self.cwd = os.path.join(self.mh.archives[self._archive], 'source')
+        if newArchiveCreated and self._mmt:
+            self._mmt.do_shutdown()
+            self._mmt = None
+            self._mmtFailedStartupLogs = []
+            self._mmtFailedStartupMessage = None
+            logs.append('MMT will be reloaded')
         if self._gfshell:
             self._gfshell.do_shutdown()
             self._gfshell = None
@@ -217,7 +225,7 @@ class Glif(object):
             gf = gfresult.value
             assert gf
             r = gf.handle_command(f'import {filename}').strip()
-            if r: # Failure
+            if r and not r.startswith('Abstract changed'):     # Failure
                 success = False
                 logs.append(f'GF import failed:\n{parsing.indent(r)}')
         else:
