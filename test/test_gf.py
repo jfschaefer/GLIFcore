@@ -7,8 +7,10 @@ from glif import gf
 class TestShellIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        executable = find_executable('gf')
+        assert executable
         cls.gfshell = gf.GFShellRaw(
-                find_executable('gf'),
+                executable,
                 cwd = os.path.dirname(__file__),
                 )
 

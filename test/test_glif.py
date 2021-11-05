@@ -10,6 +10,7 @@ class TestGlif(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.glif = Glif()
+        assert cls.glif.mh
 
         # copy files
         cls.glif.mh.makeSubdir(TEST_ARCHIVE, 'mini')
