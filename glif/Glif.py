@@ -201,7 +201,7 @@ class Glif(object):
             if not name in self._commands:
                 return Result(False, logs=f'Unkown command "{name}"')
 
-            r = self._commands[name].fromString(rest)
+            r = self._commands[name].from_string(rest)
             if not r.success:
                 return Result(False, logs=r.logs)
             assert r.value
