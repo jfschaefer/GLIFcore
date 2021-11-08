@@ -1,12 +1,13 @@
 import os
-from typing import Optional, TypeVar, Generic
+from typing import Optional, TypeVar, Generic, Union
 from distutils.spawn import find_executable
 import subprocess
 
 T = TypeVar('T')
 
+
 class Result(Generic[T]):
-    def __init__(self, success: bool = False, value: Optional[T] = None, logs: str = ''):
+    def __init__(self, success: bool = False, value: Union[None, T] = None, logs: str = ''):
         self.success = success
         self.value = value
         self.logs = logs
@@ -14,14 +15,16 @@ class Result(Generic[T]):
     def __str__(self):  # only for debugging
         return f'Success: {self.success}\nValue: {self.value}\nLogs: {self.logs}'
 
+
 def find_free_port() -> int:
-    ''' from https://stackoverflow.com/a/45690594 '''
+    """ from https://stackoverflow.com/a/45690594 """
     import socket
     from contextlib import closing
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(('localhost', 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
 
 def find_mmt_jar() -> Result[str]:
     jar = os.getenv('MMT_JAR')
@@ -38,12 +41,13 @@ def find_mmt_jar() -> Result[str]:
             return Result(True, jar, 'Lucky guess')
     return Result(False, None, 'Failed to find mmt.jar (tip: set the MMT_JAR environment variable)')
 
-def find_mathhub_dir(mmtjar : str) -> Result[str]:
+
+def find_mathhub_dir(mmtjar: str) -> Result[str]:
     path = os.getenv('MATHHUB')
     if path and os.path.isdir(path):
         return Result(True, path, 'Inferred from environment variable MATHHUB')
-    
-    mmtrc =  os.path.join(os.path.dirname(mmtjar), 'mmtrc')
+
+    mmtrc = os.path.join(os.path.dirname(mmtjar), 'mmtrc')
     if os.path.isfile(mmtrc):
         with open(mmtrc, 'r') as f:
             for line in f:
@@ -57,6 +61,7 @@ def find_mathhub_dir(mmtjar : str) -> Result[str]:
     if os.path.isdir(path):
         return Result(True, os.path.realpath(path), 'Guessed from location of mmt.jar')
     return Result(False, None, 'Failed to determine MathHub path (tip: set the MATHHUB environment variable)')
+
 
 def dot2svg(dot: bytes) -> Result[bytes]:
     dotpath = find_executable('dot')
@@ -73,7 +78,9 @@ def dot2svg(dot: bytes) -> Result[bytes]:
     proc.wait()
     return Result(True, svg)
 
-def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdin: str = '', args: list[str] = [], isjusttypecheck: bool = False) -> Result[tuple[str, str]]:
+
+def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdin: str = '',
+            args: Optional[list[str]] = None, isjusttypecheck: bool = False) -> Result[tuple[str, str]]:
     elpipath = find_executable('elpi')
     if not elpipath:
         return Result(False, None, 'Failed to locate executable "elpi"')
@@ -86,10 +93,10 @@ def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdi
         call += args
 
     proc = subprocess.Popen(call, text=True,
-        stdin = subprocess.PIPE,
-        stderr = subprocess.PIPE,
-        stdout = subprocess.PIPE,
-        cwd = cwd)
+                            stdin=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            cwd=cwd)
     assert proc.stdin
     assert proc.stdout
     assert proc.stderr
@@ -105,8 +112,9 @@ def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdi
         if isjusttypecheck:
             # TODO: better extract type checking errors (they are sometimes in stderr and sometimes in stdout)
             err = err.strip()
-            return Result(False, None, 'Typecheck failed:\n' + out + ('\n' + err if not err.endswith('Data.State.Halt') else ''))
+            return Result(False, None,
+                          'Typecheck failed:\n' + out + ('\n' + err if not err.endswith('Data.State.Halt') else ''))
         return Result(False, None,
-            'ELPI ERROR: ' + str(proc.returncode) + '\nOUTPUT:\n' + out + '\nERROR:\n' + err + '\nCALL:\n' + str(call))
+                      'ELPI ERROR: ' + str(
+                          proc.returncode) + '\nOUTPUT:\n' + out + '\nERROR:\n' + err + '\nCALL:\n' + str(call))
     return Result(True, (out, err))
-

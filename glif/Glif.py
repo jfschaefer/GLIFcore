@@ -7,8 +7,6 @@ import glif.mmt as mmt
 import glif.utils as utils
 from glif.utils import Result
 import os
-import shutil
-
 
 DEFAULT_ARCHIVE = 'tmpGLIF/default'
 
@@ -26,43 +24,44 @@ class Glif(object):
         self._findMMTlogs: list[str] = []
         self._mmtFailedStartupLogs: list[str] = []
         self._mmtFailedStartupMessage: Optional[str] = None
-        self._initMMTLocation()
+        self._init_mmt_location()
 
-        self.defaultview : Optional[str] = None
+        self.defaultview: Optional[str] = None
 
         # ELPI
-        self.defaultelpi : Optional[str] = None
-        self._typecheckelpi : bool = False
+        self.defaultelpi: Optional[str] = None
+        self._typecheckelpi: bool = False
 
         self._archive: Optional[str] = None
         self._subdir: Optional[str] = None
         if self.mh:
             if DEFAULT_ARCHIVE not in self.mh.archives:
-                assert self.mh.makeArchive(DEFAULT_ARCHIVE).success
+                assert self.mh.make_archive(DEFAULT_ARCHIVE).success
             self.cwd = os.path.join(self.mh.archives[DEFAULT_ARCHIVE], 'source')
             self._archive = DEFAULT_ARCHIVE
         else:
             self.cwd = os.getcwd()
-        self._commands: dict[str, cmd.CommandType] = {}   # command name -> command type
-        self._loadInitialCommands()
+        self._commands: dict[str, cmd.CommandType] = {}  # command name -> command type
+        self._load_initial_commands()
 
-    def setArchive(self, archive: str, subdir: Optional[str], create: bool = False) -> Result[str]:
+    def set_archive(self, archive: str, subdir: Optional[str], create: bool = False) -> Result[str]:
         if not self.mh:
-            return Result(False, None, 'Error: MathHub folder not found\nLogs:' + parsing.indent('\n'.join(self._findMMTlogs)))
+            return Result(False, None,
+                          'Error: MathHub folder not found\nLogs:' + parsing.indent('\n'.join(self._findMMTlogs)))
         logs = []
-        newArchiveCreated = False
+        new_archive_created = False
         if archive not in self.mh.archives:
             if create:
-                r = self.mh.makeArchive(archive)
+                r = self.mh.make_archive(archive)
                 if not r.success:
                     return Result(False, None, f'Error: Failed to create archive {archive}:' + parsing.indent(r.logs))
                 logs.append(f'Successfully created archive {archive}')
-                newArchiveCreated = True
+                new_archive_created = True
             else:
                 return Result(False, None, f'Error: Archive {archive} doesn\'t exist')
-        if subdir and not self.mh.existsSubdir(archive, subdir):
+        if subdir and not self.mh.exists_subdir(archive, subdir):
             if create:
-                assert self.mh.makeSubdir(archive, subdir).success
+                assert self.mh.make_subdir(archive, subdir).success
                 logs.append(f'Successfully created directory {subdir} in archive {archive}')
             else:
                 return Result(False, None, f'Error: Archive {archive} doesn\'t have a directory {subdir}')
@@ -73,7 +72,7 @@ class Glif(object):
             self.cwd = os.path.join(self.mh.archives[self._archive], 'source', self._subdir)
         else:
             self.cwd = os.path.join(self.mh.archives[self._archive], 'source')
-        if newArchiveCreated and self._mmt:
+        if new_archive_created and self._mmt:
             self._mmt.do_shutdown()
             self._mmt = None
             self._mmtFailedStartupLogs = []
@@ -85,13 +84,14 @@ class Glif(object):
             logs.append('GF shell will be reloaded')
         return Result(True, '\n'.join(logs))
 
-    def getArchiveSubdir(self) -> Result[tuple[str,Optional[str]]]:
+    def get_archive_subdir(self) -> Result[tuple[str, Optional[str]]]:
         if self._archive:
             return Result(True, (self._archive, self._subdir))
-        return Result(False, None, 'No MMT archive selected. This is probably due to problems during the initialization of MMT. Here are the logs:\n' + parsing.indent("\n".join(self._findMMTlogs)))
+        return Result(False, None,
+                      'No MMT archive selected. This is probably due to problems during the initialization of MMT. '
+                      'Here are the logs:\n' + parsing.indent("\n".join(self._findMMTlogs)))
 
-
-    def _initMMTLocation(self):
+    def _init_mmt_location(self):
         # JAR
         mmtjar = utils.find_mmt_jar()
         self._findMMTlogs.append('Finding mmt.jar: "' + mmtjar.logs + '"')
@@ -110,11 +110,11 @@ class Glif(object):
         self._findMMTlogs.append('Location: ' + mhdir.value)
         self.mh = mmt.MathHub(mhdir.value)
 
-    def getMMT(self) -> Result[mmt.MMTInterface]:
+    def get_mmt(self) -> Result[mmt.MMTInterface]:
         if self._mmt:
             return Result(True, self._mmt)
         if not (self.mmtjar and self.mh):
-            return Result(False, logs = '\n'.join(self._findMMTlogs))
+            return Result(False, logs='\n'.join(self._findMMTlogs))
         assert self.mmtjar
         assert self.mh
         try:
@@ -125,20 +125,19 @@ class Glif(object):
             return Result(False, logs=ex.message)
         return Result(True, self._mmt)
 
-    def _loadInitialCommands(self):
-        # load GF commands
-        for ct in cmd.GF_COMMAND_TYPES + cmd.GLIF_COMMAND_TYPES:
+    def _load_initial_commands(self):
+        for ct in cmd.GLIF_COMMAND_TYPES + cmd.GF_COMMAND_TYPES:
             for name in ct.names:
                 self._commands[name] = ct
 
-    def executeCell(self, code: str) -> list[Result[cmd.Items]]:
-        fileR = parsing.identifyFile(code)
-        if fileR.success:
-            assert fileR.value
-            type_ = fileR.value[0]
-            name = fileR.value[1]
+    def execute_cell(self, code: str) -> list[Result[cmd.Items]]:
+        file_r = parsing.identify_file(code)
+        if file_r.success:
+            assert file_r.value
+            type_ = file_r.value[0]
+            name = file_r.value[1]
             ending = type_.split('-')[0]  # should be one in 'mmt', 'gf', 'elpi'
-            archiveresult = self.getArchiveSubdir()
+            archiveresult = self.get_archive_subdir()
             if ending == 'mmt' and not archiveresult.success:
                 return [Result(False, None, archiveresult.logs)]
             with open(os.path.join(self.cwd, f'{name}.{ending}'), 'w', encoding='utf8') as fp:
@@ -148,14 +147,14 @@ class Glif(object):
                     fp.write(f'namespace http://mathhub.info/{archive}{"/" + subdir if subdir else ""} ❚')
                 elif type_ in ['elpi', 'elpi-notc']:
                     fp.write('accumulate glif. ')
-                fp.write(fileR.value[2])
+                fp.write(file_r.value[2])
                 if type_ in ['elpi', 'elpi-notc']:
                     fp.write('\n\nnamespace glifutil { type success (list string) -> prop. success _. }\n')
 
             try:
                 if type_ == 'elpi':
                     self._typecheckelpi = True
-                result = self.executeCommand(f'import "{name}.{ending}"')
+                result = self.execute_command(f'import "{name}.{ending}"')
             finally:
                 self._typecheckelpi = False
             if result.success and type_ == 'mmt-view' and self.defaultview != name:
@@ -167,9 +166,9 @@ class Glif(object):
             return [result]
 
         # TODO: comments and multiple commands
-        return self.executeCommands(code)
+        return self.execute_commands(code)
 
-    def executeCommands(self, code: str) -> list[Result[cmd.Items]]:
+    def execute_commands(self, code: str) -> list[Result[cmd.Items]]:
         results = []
         currentcommand = ''
         for line in code.splitlines():
@@ -182,15 +181,15 @@ class Glif(object):
             if line == '':
                 continue
             if currentcommand.strip():
-                results.append(self.executeCommand(currentcommand))
+                results.append(self.execute_command(currentcommand))
             currentcommand = line
         if currentcommand.strip():
-            results.append(self.executeCommand(currentcommand))
+            results.append(self.execute_command(currentcommand))
         if not results:
             return [Result(False, logs=f'No command given')]
         return results
 
-    def executeCommand(self, command: str) -> Result[cmd.Items]:
+    def execute_command(self, command: str) -> Result[cmd.Items]:
         items = None
         rest = command.strip()
         while rest:
@@ -198,7 +197,7 @@ class Glif(object):
                 name = rest[:rest.find(' ')]
             else:
                 name = rest
-            if not name in self._commands:
+            if name not in self._commands:
                 return Result(False, logs=f'Unkown command "{name}"')
 
             r = self._commands[name].from_string(rest)
@@ -217,39 +216,41 @@ class Glif(object):
 
         return Result(True, value=items)
 
-    def importGFfile(self, filename: str) -> Result[None]:
+    def import_gf_file(self, filename: str) -> Result[None]:
         success = True
         logs = []
-        gfresult = self.getGfShell()
+        gfresult = self.get_gf_shell()
         if gfresult.success:
             gf = gfresult.value
             assert gf
             r = gf.handle_command(f'import {filename}').strip()
-            if r and not r.startswith('Abstract changed'):     # Failure
+            if r and not r.startswith('Abstract changed'):  # Failure
                 success = False
                 logs.append(f'GF import failed:\n{parsing.indent(r)}')
         else:
             success = False
             logs.append(f'GF import failed:\n{parsing.indent(gfresult.logs)}')
 
-        mmtresult = self.getMMT()
+        mmtresult = self.get_mmt()
         if mmtresult.success:
             mmt = mmtresult.value
             assert mmt
             assert self._archive
-            rr = mmt.buildFile(self._archive, self._subdir, filename)
-            if not rr.success and rr.logs:    # We get failures (without logs) for concrete syntaxes
-                                              # TODO: Find a better solution!
+            rr = mmt.build_file(self._archive, self._subdir, filename)
+            if not rr.success and rr.logs:  # We get failures (without logs) for concrete syntaxes
+                # TODO: Find a better solution!
                 logs.append(f'MMT import failed:\n{parsing.indent(rr.logs)}')
                 success = False
             if rr.success:
-                rrr = mmt.elpigen('types', self._archive, self._subdir, filename + '/' + os.path.splitext(os.path.basename(filename))[0])
+                rrr = mmt.elpigen('types', self._archive, self._subdir,
+                                  filename + '/' + os.path.splitext(os.path.basename(filename))[0])
                 if not rrr.success:
                     logs.append(f'ELPI export failed:\n{parsing.indent(rrr.logs)}')
                     success = False
                 else:
-                    assert rrr.value
-                    with open(os.path.join(self.cwd, os.path.splitext(filename)[0]+'.elpi'), 'w', encoding='utf8') as fp:
+                    assert rrr.value is not None
+                    with open(os.path.join(self.cwd, os.path.splitext(filename)[0] + '.elpi'), 'w',
+                              encoding='utf8') as fp:
                         fp.write(rrr.value)
         else:
             success = False
@@ -257,20 +258,20 @@ class Glif(object):
 
         return Result(success, logs='\n'.join(logs))
 
-    def importMMTfile(self, filename: str) -> Result[None]:
-        mmtresult = self.getMMT()
+    def import_mmt_file(self, filename: str) -> Result[None]:
+        mmtresult = self.get_mmt()
         if mmtresult.success:
             mmt = mmtresult.value
             assert mmt
             assert self._archive
-            rr = mmt.buildFile(self._archive, self._subdir, filename)
+            rr = mmt.build_file(self._archive, self._subdir, filename)
             if not rr.success:
                 return Result(False, logs=rr.logs)
         else:
             return Result(False, logs=f'MMT import failed:\n{parsing.indent(mmtresult.logs)}')
         return Result(True)
 
-    def importELPIfile(self, filename: str) -> Result[None]:
+    def import_elpi_file(self, filename: str) -> Result[None]:
         fullpath = os.path.join(self.cwd, filename)
 
         # using f'elpi -I {__file__}' instead
@@ -282,7 +283,7 @@ class Glif(object):
             if not er.success:
                 return Result(False, logs=er.logs)
             assert er.value
-            warning = er.value[0].strip()   # stdout should be empty
+            warning = er.value[0].strip()  # stdout should be empty
             if warning:
                 return Result(False, logs=warning)
 
@@ -291,11 +292,11 @@ class Glif(object):
         r.logs = f'{filename} is the new default file for ELPI commands'
         return r
 
-    def getGfShell(self) -> Result[gf.GFShellRaw]:
+    def get_gf_shell(self) -> Result[gf.GFShellRaw]:
         if not self._gfshell and self._gfshellFailedLogs is None:
             place = find_executable('gf')
             if place:
-                self._gfshell = gf.GFShellRaw(place, cwd = self.cwd)
+                self._gfshell = gf.GFShellRaw(place, cwd=self.cwd)
             else:
                 self._gfshellFailedLogs = 'Failed to locate executable "gf"'
         if self._gfshell:
@@ -310,4 +311,3 @@ class Glif(object):
 
         if self._mmt:
             self._mmt.do_shutdown()
-

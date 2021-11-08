@@ -4,22 +4,25 @@ from distutils.spawn import find_executable
 
 from glif import gf
 
+
 class TestShellIO(unittest.TestCase):
+    gfshell: gf.GFShellRaw
+
     @classmethod
     def setUpClass(cls):
         executable = find_executable('gf')
         assert executable
         cls.gfshell = gf.GFShellRaw(
-                executable,
-                cwd = os.path.dirname(__file__),
-                )
+            executable,
+            cwd=os.path.dirname(__file__),
+        )
 
     @classmethod
     def tearDownClass(cls):
         cls.gfshell.do_shutdown()
 
     def setUp(self):
-        self.checkio('empty', '')    # empty environment
+        self.checkio('empty', '')  # empty environment
 
     def checkio(self, in_, out):
         self.assertEqual(self.gfshell.handle_command(in_), out)

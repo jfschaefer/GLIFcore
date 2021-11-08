@@ -185,10 +185,10 @@ class GfCommand(Command):
             items = Items.from_vals(self.inrepr, self.bc.mainargs)
             return self.apply(glif, items)
 
-        gfshell = glif.getGfShell()
+        gfshell = glif.get_gf_shell()
         if gfshell.success:
             assert gfshell.value
-            output = gfshell.value.handle_command(self.bc.gfFormat(None))
+            output = gfshell.value.handle_command(self.bc.gf_format(None))
             # TODO: better output handling
             vals, errs = self.handle_shell_output(output)
             return Items.from_vals(self.outrepr, vals).with_errors(errs)
@@ -198,11 +198,11 @@ class GfCommand(Command):
     def _apply_item(self, glif, item):
         inp = item.try_get_repr(self.inrepr)
         assert inp.value
-        gfshell = glif.getGfShell()
+        gfshell = glif.get_gf_shell()
         if not gfshell.success:
             return Items([]).with_errors(item.errors + [gfshell.logs])
         assert gfshell.value
-        output = gfshell.value.handle_command(self.bc.gfFormat(inp.value, self.inrepr != Repr.AST))
+        output = gfshell.value.handle_command(self.bc.gf_format(inp.value, self.inrepr != Repr.AST))
 
         vals, errs = self.handle_shell_output(output)
         items = Items([]).with_errors(errs)
@@ -221,7 +221,7 @@ class GfCommandType(CommandType):
 
     def from_string(self, string: str) -> Result[tuple[Command, str]]:
         string = string.strip()
-        cmdresult = parseBasicCommand(string)
+        cmdresult = parse_basic_command(string)
         if not cmdresult.success:
             return Result(False, logs=cmdresult.logs)
         assert cmdresult.value
@@ -271,7 +271,7 @@ class NonApplicableCommandType(CommandType):
 
     def from_string(self, string: str) -> Result[tuple[Command, str]]:
         string = string.strip()
-        cmdresult = parseBasicCommand(string, splitMainArgAtSpace=True)
+        cmdresult = parse_basic_command(string, split_mainarg_at_space=True)
         if not cmdresult.success:
             return Result(False, logs=cmdresult.logs)
         assert cmdresult.value
@@ -312,7 +312,7 @@ class OnlyApplicableCommandType(CommandType):
 
     def from_string(self, string: str) -> Result[tuple[Command, str]]:
         string = string.strip()
-        cmdresult = parseBasicCommand(string, splitMainArgAtSpace=True)
+        cmdresult = parse_basic_command(string, split_mainarg_at_space=True)
         if not cmdresult.success:
             return Result(False, logs=cmdresult.logs)
         assert cmdresult.value
@@ -381,19 +381,19 @@ def import_helper(cmd: BasicCommand):
         errs = []
         for ma in cmd.mainargs:
             if ma.endswith('.gf'):
-                r = glif.importGFfile(ma)
+                r = glif.import_gf_file(ma)
                 if r.success:
                     logs.append(f'Successfully imported {ma}')
                 else:
                     errs.append(r.logs)
             elif ma.endswith('.mmt'):
-                r = glif.importMMTfile(ma)
+                r = glif.import_mmt_file(ma)
                 if r.success:
                     logs.append(f'Successfully imported {ma}')
                 else:
                     errs.append(r.logs)
             elif ma.endswith('.elpi'):
-                r = glif.importELPIfile(ma)
+                r = glif.import_elpi_file(ma)
                 if r.success:
                     logs.append(f'Successfully imported {ma}')
                     if r.logs:
@@ -421,7 +421,7 @@ def archive_helper(cmd: BasicCommand):
         if len(cmd.mainargs) > 1:
             subdir = cmd.mainargs[1]
 
-        r = glif.setArchive(archive, subdir, create=True)
+        r = glif.set_archive(archive, subdir, create=True)
         output = []
         if r.value:
             output.append(r.value)
@@ -437,6 +437,8 @@ def status_helper(cmd: BasicCommand):
         pr = wrong_command_pattern_response(cmd,
                                             allowed_key_args=[{'load-gf'}, {'load-mmt'}, {'gf-logs'}, {'mmt-logs'}],
                                             allowed_key_val_args=[], min_main_args=0, max_main_args=0)
+        if pr:
+            return pr
         loadgf = any(arg.key in {'load-gf'} for arg in cmd.args)
         loadmmt = any(arg.key in {'load-mmt'} for arg in cmd.args)
         gflogs = any(arg.key in {'gf-logs'} for arg in cmd.args)
@@ -446,7 +448,7 @@ def status_helper(cmd: BasicCommand):
 
         # GF
         if loadgf:
-            glif.getGfShell()
+            glif.get_gf_shell()
         result.append('')
         result.append('GF STATUS')
         if glif._gfshell:
@@ -461,7 +463,7 @@ def status_helper(cmd: BasicCommand):
 
         # MMT
         if loadmmt:
-            glif.getMMT()
+            glif.get_mmt()
         result.append('')
         result.append('MMT STATUS')
         if glif._mmt:
@@ -505,20 +507,20 @@ def construct_helper(cmd: BasicCommand):
                                             allowed_key_val_args=[{'v', 'view'}])
         if pr:
             return Items([]).with_errors([pr.logs])
-        view = cmd.getValOrDefault({'v', 'view'}, glif.defaultview if glif.defaultview else '')
+        view = cmd.get_val_or_default({'v', 'view'}, glif.defaultview if glif.defaultview else '')
         delta = any(arg.key in {'de', 'delta-expand'} for arg in cmd.args)
         simplify = not any(arg.key in {'no-simplify'} for arg in cmd.args)
         if not view:
             return Items([]).with_errors(['No semantics construction view has been specified for the "construct" '
                                           'command and no default view is available.'])
 
-        mmt_result = glif.getMMT()
+        mmt_result = glif.get_mmt()
         if not mmt_result.success:
             return Items([]).with_errors([mmt_result.logs])
         mmt = mmt_result.value
         assert mmt
 
-        archsub = glif.getArchiveSubdir()
+        archsub = glif.get_archive_subdir()
         if not archsub.success:
             return Items([]).with_errors(['"construct" failed.', archsub.logs])
         assert archsub.value
@@ -528,7 +530,7 @@ def construct_helper(cmd: BasicCommand):
             return s
 
         asts = list({helperunwrap(item.try_get_repr(Repr.AST).value) for item in items.items})
-        r = mmt.construct(asts, archsub.value[0], archsub.value[1], view, deltaExpand=delta, simplify=simplify)
+        r = mmt.construct(asts, archsub.value[0], archsub.value[1], view, delta_expand=delta, simplify=simplify)
 
         if not r.success:
             return Items([]).with_errors(['"construct" failed.', r.logs])
@@ -558,13 +560,13 @@ def filter_helper(cmd: BasicCommand):
         if pr:
             return Items([]).with_errors([pr.logs])
         typecheck = not any(arg.key in {'notc', 'no-typechecking'} for arg in cmd.args)
-        file = cmd.getValOrDefault({'f', 'file'}, glif.defaultelpi if glif.defaultelpi else '')
+        file = cmd.get_val_or_default({'f', 'file'}, glif.defaultelpi if glif.defaultelpi else '')
         if not file:
             return Items([]).with_errors(
                 ['No ELPI file was specified for the "{cmd.name}" command and now default file is available.'])
         if not file.endswith('.elpi'):
             file += '.elpi'
-        predicate = cmd.getValOrDefault({'p', 'predicate'}, 'filter')
+        predicate = cmd.get_val_or_default({'p', 'predicate'}, 'filter')
         expressions = []
         for itemid, item in enumerate(items.items):
             expr = f'glif.mkItem {itemid} {item.original_id} '
@@ -609,20 +611,20 @@ def elpigen_helper(cmd: BasicCommand):
             return pr
         meta = any(arg.key in {'with-meta', 'wm'} for arg in cmd.args)
         includes = not any(arg.key in {'no-includes', 'ni'} for arg in cmd.args)
-        mode = cmd.getValOrDefault({'m', 'mode'}, 'types')
+        mode = cmd.get_val_or_default({'m', 'mode'}, 'types')
         if mode not in {'types', 'simpleprover'}:
             return Result(False, [], f'Unsupported mode "{mode}"')
         theory = cmd.mainargs[0]
-        file = cmd.getValOrDefault({'f', 'file'}, theory)
+        file = cmd.get_val_or_default({'f', 'file'}, theory)
         if not file.endswith('.elpi'):
             file += '.elpi'
 
-        mmtr = glif.getMMT()
+        mmtr = glif.get_mmt()
         if not mmtr.success:
             return Result(False, [], 'Failed load MMT:\n' + mmtr.logs)
         assert mmtr.value
         mmt = mmtr.value
-        asr = glif.getArchiveSubdir()
+        asr = glif.get_archive_subdir()
         if not asr.success:
             return Result(False, [], asr.logs)
         assert asr.value

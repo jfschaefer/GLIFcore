@@ -1,19 +1,23 @@
 import os
 import subprocess
 
+from typing import Optional
 
 # Basically a unique string that will never show up in the output (hopefully)
 COMMAND_SEPARATOR = "COMMAND_SEPARATOR===??!<>239'_"
 
+
 class GFShellRaw(object):
-    def __init__(self, gf_path: str, cwd: str = None, args: list[str] = []):
+    def __init__(self, gf_path: str, cwd: str = None, args: Optional[list[str]] = None):
+        if args is None:
+            args = []
         pipe = os.pipe()
         self.gf_shell = subprocess.Popen([gf_path, '--run'] + args,
-                          stdin = subprocess.PIPE,
-                          stderr = pipe[1],
-                          stdout = pipe[1],
-                          text = True,
-                          cwd=cwd)
+                                         stdin=subprocess.PIPE,
+                                         stderr=pipe[1],
+                                         stdout=pipe[1],
+                                         text=True,
+                                         cwd=cwd)
         self.commandcounter = 0
         self.infile = os.fdopen(pipe[0])
         self.gfoutfd = pipe[1]
@@ -63,8 +67,8 @@ class GFShellRaw(object):
 
 
 if __name__ == "__main__":
-    import sys
     from distutils.spawn import find_executable
+
     path = find_executable('gf')
     assert path is not None
     gfShell = GFShellRaw(path)

@@ -1,19 +1,20 @@
 import unittest
+from typing import Optional
+
 from glif import parsing
-from glif import Glif
-from glif import commands
 from glif import utils
 
 
 class TestBasicParsing(unittest.TestCase):
     def test_parse_argument(self):
-        def test(s,k,v):
-            pr = parsing.parseCommandArg(s)
+        def test(s, k, v):
+            pr = parsing.parse_command_arg(s)
             if not pr.success:
                 print(pr.logs)
             self.assertTrue(pr.success)
             expected = parsing.CommandArgument(key=k, value=v)
             self.assertEqual(pr.value[0], expected)
+
         test('-lang=Eng "test"', 'lang', 'Eng')
         test('-lang=Eng', 'lang', 'Eng')
         test('-val="test"', 'val', 'test')
@@ -24,19 +25,26 @@ class TestBasicParsing(unittest.TestCase):
         test('-simple', 'simple', '')
         test('-simple "test"', 'simple', '')
 
+
 class TestCommandParsing(unittest.TestCase):
-    def parseBCtest(self, cmdStr: str, cmdname: str = '', args: list[tuple[str,str]] = [], mainargs: list[str] = [], success: bool = True, remainder: str = ''):
-        cmd = parsing.parseBasicCommand(cmdStr)
+    def parseBCtest(self, cmd_str: str, cmdname: str = '', args: Optional[list[tuple[str, str]]] = None,
+                    mainargs: Optional[list[str]] = None, success: bool = True, remainder: str = ''):
+        if not args:
+            args = []
+        if not mainargs:
+            mainargs = []
+        cmd = parsing.parse_basic_command(cmd_str)
         if success:
             self.assertTrue(cmd.success)
             assert cmd.value
             self.assertEqual(cmd.value[1].strip(), remainder)
+            self.assertEqual(cmd.value[0].name, cmdname)
             self.assertEqual(len(cmd.value[0].args), len(args))
-            for (a,b) in zip(args, cmd.value[0].args):
+            for (a, b) in zip(args, cmd.value[0].args):
                 self.assertEqual(a[0], b.key)
                 self.assertEqual(a[1], b.value)
             self.assertEqual(len(cmd.value[0].mainargs), len(mainargs))
-            for (x,y) in zip(mainargs, cmd.value[0].mainargs):
+            for (x, y) in zip(mainargs, cmd.value[0].mainargs):
                 self.assertEqual(x, y)
         else:
             self.assertFalse(cmd.success)
@@ -44,11 +52,12 @@ class TestCommandParsing(unittest.TestCase):
     def test_basic(self):
         self.parseBCtest('parse -lang=Eng "hello world"', 'parse', [('lang', 'Eng')], ['hello world'])
         self.parseBCtest('parse -lang=Eng -cat=S', 'parse', [('lang', 'Eng'), ('cat', 'S')])
-        self.parseBCtest('parse -lang=Eng "hello world" | l -lang=Ger', 'parse', [('lang', 'Eng')], ['hello world'], remainder='l -lang=Ger')
+        self.parseBCtest('parse -lang=Eng "hello world" | l -lang=Ger', 'parse', [('lang', 'Eng')], ['hello world'],
+                         remainder='l -lang=Ger')
         self.parseBCtest('parse "hello world"', 'parse', [], ['hello world'])
         self.parseBCtest('parse', 'parse')
-        self.parseBCtest('l -lang=Eng hello', 'l', [('lang','Eng')], ['hello'])
-        self.parseBCtest('l -lang=Eng exclaim (hello world)', 'l', [('lang','Eng')], ['exclaim (hello world)'])
+        self.parseBCtest('l -lang=Eng hello', 'l', [('lang', 'Eng')], ['hello'])
+        self.parseBCtest('l -lang=Eng exclaim (hello world)', 'l', [('lang', 'Eng')], ['exclaim (hello world)'])
 
     def test_incomplete(self):
         self.parseBCtest('parse -lang=', success=False)
@@ -69,16 +78,18 @@ class TestCommandParsing(unittest.TestCase):
         self.parseBCtest('parse "|" | l', 'parse', [], ['|'], remainder='l')
 
     def test_space(self):
-        self.parseBCtest('parse    -lang=Eng    "hello world"   | l -lang=Ger', 'parse', [('lang', 'Eng')], ['hello world'], remainder='l -lang=Ger')
-        self.parseBCtest('parse -lang=Eng "hello world"| l -lang=Ger', 'parse', [('lang', 'Eng')], ['hello world'], remainder='l -lang=Ger')
+        self.parseBCtest('parse    -lang=Eng    "hello world"   | l -lang=Ger', 'parse', [('lang', 'Eng')],
+                         ['hello world'], remainder='l -lang=Ger')
+        self.parseBCtest('parse -lang=Eng "hello world"| l -lang=Ger', 'parse', [('lang', 'Eng')], ['hello world'],
+                         remainder='l -lang=Ger')
 
     def test_mainargs(self):
         self.parseBCtest('parse "hello" "world"', 'parse', [], ['hello', 'world'])
 
 
 class TestFileIdentification(unittest.TestCase):
-    def idTest(self, content: str, expected: utils.Result[tuple[str,str]]):
-        r = parsing.identifyFile(content)
+    def idTest(self, content: str, expected: utils.Result[tuple[str, str]]):
+        r = parsing.identify_file(content)
         if expected.success:
             self.assertTrue(r.success)
             assert r.value
@@ -88,14 +99,15 @@ class TestFileIdentification(unittest.TestCase):
 
     def test_basic(self):
         self.idTest('abstract Grammar = { cat T; }', utils.Result(True, ('gf-abstract', 'Grammar')))
-        self.idTest('concrete GrammarEng of Grammar = { lin T = Str; }', utils.Result(True, ('gf-concrete', 'GrammarEng')))
+        self.idTest('concrete GrammarEng of Grammar = { lin T = Str; }',
+                    utils.Result(True, ('gf-concrete', 'GrammarEng')))
         self.idTest('theory DDT : ur:?LF = ❚', utils.Result(True, ('mmt-theory', 'DDT')))
         self.idTest('view V : ?A -> ?B = ❚', utils.Result(True, ('mmt-view', 'V')))
         self.idTest('parse "Hello world"', utils.Result(False))
-        self.idTest('-- The abstract syntax\nabstract Grammar = { cat T; }', utils.Result(True, ('gf-abstract', 'Grammar')))
+        self.idTest('-- The abstract syntax\nabstract Grammar = { cat T; }',
+                    utils.Result(True, ('gf-abstract', 'Grammar')))
         self.idTest('// Example MMT theory ❚  theory DDT : ur:?LF = ❚', utils.Result(True, ('mmt-theory', 'DDT')))
 
 
 if __name__ == '__main__':
     unittest.main()
-
