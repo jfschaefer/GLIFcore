@@ -81,6 +81,19 @@ class TestGlif(unittest.TestCase):
         self.elpi_codecell_test('elpi-notc: test2.\nh _.', True)
         self.elpi_codecell_test('elpi: test3\ntype h prop.\nh _.', False)
 
+    def test_command_parsing(self):
+        self.command_test(f'archive {TEST_ARCHIVE} mini')
+        self.command_test('import MiniGrammar.gf MiniGrammarEng.gf')
+
+        # TEST TREATMENT OF ARGUMENTS
+        self.command_test('linearize "s everyone (love someone)"', output="everyone loves someone")
+        self.command_test('linearize "s everyone (love someone)" "s someone (love someone)"',
+                          output="everyone loves someone\nsomeone loves someone")
+        # in GF, AST arguments don't require quotation marks (i.e. they are not split at spaces)
+        self.command_test('linearize s everyone (love someone)', output="everyone loves someone")
+        # but (in GLIF) we require quotation marks for non-AST arguments with spaces
+        self.command_test('ps "abc def"', output="abc def")
+        self.command_test('ps abc def', output="abc\ndef")
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,6 +3,7 @@ from typing import Optional
 
 from glif import parsing
 from glif import utils
+from glif import commands
 
 
 class TestBasicParsing(unittest.TestCase):

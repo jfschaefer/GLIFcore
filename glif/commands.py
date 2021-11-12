@@ -55,7 +55,7 @@ class Item(object):
             del self.content[Repr.HTML]
         return self
 
-    def get_clone(self) -> 'Item':  # TODO: use deepcopy instead
+    def get_clone(self) -> 'Item':  # TODO: use __deepcopy__ instead
         i = Item(self.original_id)
         i.errors = self.errors[:]
         i.content = self.content.copy()
@@ -66,8 +66,9 @@ class Item(object):
         if Repr.HTML in self.content:
             s += self.content[Repr.HTML]
         elif Repr.DEFAULT in self.content:
-            s += '<span class="glif-stdout">' + html.escape(self.content[Repr.DEFAULT]).replace('\n',
-                                                                                                '<br/>') + '</span>'
+            s += '<span class="glif-stdout">' + \
+                    html.escape(self.content[Repr.DEFAULT]).replace('\n', '<br/>') +\
+                 '</span>'
         if self.errors:
             s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'
         return s
@@ -145,18 +146,31 @@ class Command(object):
 
 
 class CommandType(object):
+    _split_mainarg_at_space: bool = True
+
     def __init__(self, names: list[str]):
         self.names: list[str] = names  # Command names, e.g. ['view_tree', 'vt']
 
     def from_string(self, string: str) -> Result[tuple[Command, str]]:
         """ returns (concrete command, remaining string (in case of pipes)). """
+        string = string.strip()
+        cmdresult = parse_basic_command(string, split_mainarg_at_space=self._split_mainarg_at_space)
+        if not cmdresult.success:
+            return Result(False, logs=cmdresult.logs)
+        assert cmdresult.value
+        cmd, rest = cmdresult.value
+        assert cmd.name in self.names
+        return Result(True, value=(self._basiccommand_to_command(cmd), rest))
+
+    def _basiccommand_to_command(self, cmd: BasicCommand) -> Command:
         raise NotImplementedError()
 
-    def _get_short_descr(self) -> str:
-        return ''
 
-    def _get_long_descr(self) -> str:
-        return ''
+#     def get_short_descr(self, glif: 'Glif.Glif') -> str:
+#         return 'No description available'
+
+    def get_long_descr(self, glif: 'Glif.Glif') -> str:
+        return 'No description available'
 
 
 # GF COMMANDS
@@ -165,11 +179,10 @@ class GfCommand(Command):
     """ for standard GF commands """
 
     def __init__(self, bc: BasicCommand, inrepr: Repr, outrepr: Repr):
-        self.bc = bc
-
         self.is_executable = True
         self.is_applicable = True
 
+        self.bc = bc
         self.inrepr = inrepr
         self.outrepr = outrepr
 
@@ -214,20 +227,30 @@ class GfCommand(Command):
 class GfCommandType(CommandType):
     """ for standard GF commands """
 
+    _long_description: Optional[str] = None
+
     def __init__(self, names: list[str], inrepr: Repr, outrepr: Repr):
         CommandType.__init__(self, names)
         self.inrepr = inrepr
         self.outrepr = outrepr
+        if inrepr == Repr.AST:
+            self._split_mainarg_at_space = False   # e.g. "linearize abc (def ghi)"
 
-    def from_string(self, string: str) -> Result[tuple[Command, str]]:
-        string = string.strip()
-        cmdresult = parse_basic_command(string)
-        if not cmdresult.success:
-            return Result(False, logs=cmdresult.logs)
-        assert cmdresult.value
-        cmd, rest = cmdresult.value
-        assert cmd.name in self.names
-        return Result(True, value=(GfCommand(cmd, self.inrepr, self.outrepr), rest))
+    def _basiccommand_to_command(self, cmd: BasicCommand) -> Command:
+        return GfCommand(cmd, self.inrepr, self.outrepr)
+
+    def get_long_descr(self, glif: 'Glif.Glif') -> str:
+        if not self._long_description:
+            gfresult = glif.get_gf_shell()
+            if gfresult.success:
+                gfshell = gfresult.value
+                assert gfshell
+                self._long_description = gfshell.handle_command(f'help {self.names[0]}')
+                return self._long_description
+            else:
+                return f'Failed to get GF shell\nError: {gfresult.logs}'
+        else:
+            return self._long_description
 
 
 GF_COMMAND_TYPES: list[GfCommandType] = [
@@ -269,15 +292,8 @@ class NonApplicableCommandType(CommandType):
         self.fgen = fgen
         self.outrepr = outrepr
 
-    def from_string(self, string: str) -> Result[tuple[Command, str]]:
-        string = string.strip()
-        cmdresult = parse_basic_command(string, split_mainarg_at_space=True)
-        if not cmdresult.success:
-            return Result(False, logs=cmdresult.logs)
-        assert cmdresult.value
-        cmd, rest = cmdresult.value
-        assert cmd.name in self.names
-        return Result(True, value=(NonApplicableCommand(self.fgen(cmd), self.outrepr), rest))
+    def _basiccommand_to_command(self, cmd: BasicCommand) -> Command:
+        return NonApplicableCommand(self.fgen(cmd), self.outrepr)
 
 
 class OnlyApplicableCommand(Command):
@@ -310,17 +326,9 @@ class OnlyApplicableCommandType(CommandType):
         self.fgen = fgen
         self.argRepr = arg_repr
 
-    def from_string(self, string: str) -> Result[tuple[Command, str]]:
-        string = string.strip()
-        cmdresult = parse_basic_command(string, split_mainarg_at_space=True)
-        if not cmdresult.success:
-            return Result(False, logs=cmdresult.logs)
-        assert cmdresult.value
-        cmd, rest = cmdresult.value
-        assert cmd.name in self.names
-        oacmd = OnlyApplicableCommand(self.fgen(cmd),
-                                      Items.from_vals(self.argRepr, cmd.mainargs) if cmd.mainargs else None)
-        return Result(True, value=(oacmd, rest))
+    def _basiccommand_to_command(self, cmd: BasicCommand) -> Command:
+        return OnlyApplicableCommand(self.fgen(cmd),
+                                     Items.from_vals(self.argRepr, cmd.mainargs) if cmd.mainargs else None)
 
 
 def wrong_command_pattern_response(cmd: BasicCommand,
