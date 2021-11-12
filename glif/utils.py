@@ -16,6 +16,10 @@ class Result(Generic[T]):
         return f'Success: {self.success}\nValue: {self.value}\nLogs: {self.logs}'
 
 
+def indent(s: str, n: int = 4) -> str:
+    return '    ' + s.replace('\n', '\n' + ' ' * n).strip()
+
+
 def find_free_port() -> int:
     """ from https://stackoverflow.com/a/45690594 """
     import socket

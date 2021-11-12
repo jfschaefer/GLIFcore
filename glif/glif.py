@@ -98,6 +98,9 @@ class Glif(glif_abc.GlifABC):
     def get_defaultelpi(self) -> Optional[str]:
         return self._defaultelpi
 
+    def get_commands(self) -> dict[str, cmd.command.CommandType]:
+        return self._commands
+
     def get_cwd(self) -> str:
         return self._cwd
 

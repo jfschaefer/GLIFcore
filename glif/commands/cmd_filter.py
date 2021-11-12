@@ -57,6 +57,7 @@ FILTER_COMMAND_TYPE = GlifCommandType(
         GlifArg(names=['file', 'f'], description='Elpi file', default_value='$DEFAULT'),
         GlifArg(names=['predicate', 'p'], description='Filter predicate', default_value='filter'),
     ],
+    description='Filters logical expressions using ELPI',
     apply_fn=filter_helper,
     inrepr=Repr.LOGIC_ELPI,
     main_args_as_items=True,

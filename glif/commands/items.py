@@ -63,7 +63,7 @@ class Item(object):
             s += self.content[Repr.HTML]
         elif Repr.DEFAULT in self.content:
             s += '<span class="glif-stdout">' + \
-                    html.escape(self.content[Repr.DEFAULT]).replace('\n', '<br/>') +\
+                    html.escape(self.content[Repr.DEFAULT]).replace('\n', '<br/>').replace('  ', '&nbsp;&nbsp;') +\
                  '</span>'
         if self.errors:
             s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'

@@ -2,7 +2,7 @@ from typing import Callable, Optional
 from abc import ABC, abstractmethod
 
 from ..glif_abc import GlifABC as Glif
-from glif.commands.items import Items, Item
+from glif.commands.items import Items
 from ..parsing import parse_basic_command, BasicCommand
 from ..utils import Result
 

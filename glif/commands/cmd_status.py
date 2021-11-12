@@ -72,6 +72,7 @@ STATUS_COMMAND_TYPE = GlifCommandType(
         GlifArg(['gf-logs', 'gl'], 'Show the output of the GF start-up'),
         GlifArg(['mmt-logs', 'ml'], 'Show MMT logs'),
     ],
+    description='Prints information about the GLIF status',
     max_main_args=0,
     execute_fn=status_helper,
 )

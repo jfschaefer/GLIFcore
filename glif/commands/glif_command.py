@@ -2,7 +2,7 @@ from .command import Command, CommandType
 from ..parsing import BasicCommand
 from .items import Items, Repr
 from ..glif_abc import GlifABC as Glif
-from ..utils import Result
+from ..utils import Result, indent
 
 from typing import Callable, Optional
 
@@ -34,11 +34,22 @@ class GlifArg(object):
     def get_main_name(self) -> str:
         return self.names[0]
 
+    def __str__(self) -> str:
+        r = ' | '.join(f'-{n}' for n in self.names)
+        if self.value_set:
+            r += '\n    Possible values: ' + ', '.join(self.value_set)
+        if self.default:
+            r += '\n    Default value: ' + (self.default if self.default != '$DEFAULT' else 'chosen from context')
+        r += '\n    ' + self.description
+        return r
+
+
 
 class GlifCommandType(CommandType):
     """ for standard GLIF commands """
 
     def __init__(self, names: list[str], arguments: list[GlifArg], min_main_args: int = 0,
+                 description: str = 'No description provided',
                  max_main_args: Optional[int] = None, main_args_as_items: bool = False,
                  inrepr: Optional[Repr] = None,
                  execute_fn: Optional[Callable[[Glif, dict[str, str], set[str], list[str]], Items]] = None,
@@ -57,6 +68,15 @@ class GlifCommandType(CommandType):
         self.apply_fn = apply_fn
         if main_args_as_items:
             assert self.inrepr
+
+        # generate description
+        self._long_descr = f'{description}\n\nArguments:\n'
+        if not arguments:
+            self._long_descr += '    None'
+        else:
+            self._long_descr += '\n\n'.join((indent(str(arg), 4) for arg in arguments))
+
+
 
     def _basiccommand_to_command(self, cmd: BasicCommand) -> Result[Command]:
         args = self.extract_arguments(cmd)

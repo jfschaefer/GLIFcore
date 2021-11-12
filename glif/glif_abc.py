@@ -4,7 +4,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Any
 
 from .utils import Result
 from . import mmt, gf
@@ -26,6 +26,10 @@ class GlifABC(ABC):
 
     def get_defaultelpi(self) -> Optional[str]:
         return None
+
+    @abstractmethod
+    def get_commands(self) -> dict[str, Any]:
+        raise NotImplementedError()
 
     @abstractmethod
     def get_cwd(self) -> str:

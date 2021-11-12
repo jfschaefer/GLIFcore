@@ -58,7 +58,7 @@ class GfCommandType(CommandType):
             if gfresult.success:
                 gfshell = gfresult.value
                 assert gfshell
-                self._long_descr = gfshell.handle_command(f'help {self.names[0]}')
+                self._long_descr = gfshell.handle_command(f'help {self.names[0]}').replace('\n ', '\n  ')
                 return self._long_descr
             else:
                 return f'Failed to get GF shell\nError: {gfresult.logs}'

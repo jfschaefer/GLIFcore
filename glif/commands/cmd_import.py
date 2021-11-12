@@ -35,5 +35,6 @@ def import_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: 
 IMPORT_COMMAND_TYPE = GlifCommandType(
     names=['import', 'i'],
     arguments=[],
+    description='Imports a file',
     execute_fn=import_helper,
 )

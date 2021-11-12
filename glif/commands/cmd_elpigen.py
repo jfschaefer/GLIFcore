@@ -45,6 +45,7 @@ ELPIGEN_COMMAND_TYPE = GlifCommandType(
         GlifArg(['mode', 'm'], 'The mode of ELPI generation', default_value='types',
                 value_set={'types', 'simpleprover'}),
     ],
+    description='Generates ELPI code',
     min_main_args=1,
     max_main_args=1,
     execute_fn=elpigen_helper,

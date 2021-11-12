@@ -22,6 +22,7 @@ def archive_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs:
 
 ARCHIVE_COMMAND_TYPE = GlifCommandType(
     names=['archive', 'a'],
+    description='Sets the archive',
     arguments=[],
     execute_fn=archive_helper,
     min_main_args=1,

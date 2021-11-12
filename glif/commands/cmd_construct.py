@@ -59,6 +59,7 @@ CONSTRUCT_COMMAND_TYPE = GlifCommandType(
         GlifArg(['no-simplify'], 'Don\'t simpilfy the resulting expression'),
         GlifArg(['view', 'v'], 'Specify the semantics construction view', default_value='$DEFAULT'),
     ],
+    description='Applies the semantics construction',
     main_args_as_items=True,
     apply_fn=construct_helper,
     inrepr=Repr.AST,
