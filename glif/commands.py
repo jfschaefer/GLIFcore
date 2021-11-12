@@ -1,138 +1,26 @@
-import html
 import os
 import subprocess
 from distutils.spawn import find_executable
-from enum import Enum
-from typing import Callable
+from typing import Callable, Any
 
+from .items import Repr, Item, Items
 from .parsing import *
 from .utils import runelpi
 
-
-class Repr(Enum):
-    """ Different representations of item content """
-    HTML = 'html'  # HTML representation (available for certain GLIF commands), has to coincide with DEFAULT
-    DEFAULT = 'default'
-    SENTENCE_ORIG = 'original sentence'
-    SENTENCE = 'current sentence'
-    AST = 'abstract syntax tree'
-    LOGIC_PLAIN = 'logical expression (plain)'  # MMT without notations
-    LOGIC_STANDARD = 'logical expression'  # MMT with notations
-    LOGIC_ELPI = 'logical expression (elpi)'  # ELPI
-    GRAPH_DOT = 'graph-dot'  # graph in dot format
-    GRAPH_SVG = 'graph-svg'  # graph in svg format
-
-
-class Item(object):
-    """ Something that can be passed between commands (AST, sentence, logical expression, ...).
-        Note that an item may have multiple representations simultaneously (e.g. a string and an AST).
-    """
-
-    def __init__(self, original_id):
-        self.errors: list[str] = []
-        self.original_id: int = original_id
-        self.content: dict[Repr, str] = {}
-        self.currentRepr: Optional[Repr] = None
-
-    def try_get_repr(self, r: Repr) -> Result[str]:
-        if r in self.content:
-            return Result(True, self.content[r], '\n'.join(self.errors))
-        else:
-            message = f'Expected representation [{r}], falling back to [{Repr.DEFAULT}]'
-            message += '\nAvailable representations: ' + ' '.join([f'[{rr}]' for rr in self.content])
-            return Result(False, self.content[Repr.DEFAULT], '\n'.join(self.errors + [message]))
-
-    def with_repr(self, r: Repr, val: str, update_default: bool = True, html_version: Optional[str] = None) -> 'Item':
-        """ doesn't clone! """
-        assert r != Repr.HTML
-        if update_default:
-            self.content[Repr.DEFAULT] = val
-        self.content[r] = val
-        self.currentRepr = r
-        if html_version:
-            self.content[Repr.HTML] = html_version
-        elif Repr.HTML in self.content:
-            del self.content[Repr.HTML]
-        return self
-
-    def get_clone(self) -> 'Item':  # TODO: use __deepcopy__ instead
-        i = Item(self.original_id)
-        i.errors = self.errors[:]
-        i.content = self.content.copy()
-        return i
-
-    def html(self) -> str:
-        s = ''
-        if Repr.HTML in self.content:
-            s += self.content[Repr.HTML]
-        elif Repr.DEFAULT in self.content:
-            s += '<span class="glif-stdout">' + \
-                    html.escape(self.content[Repr.DEFAULT]).replace('\n', '<br/>') +\
-                 '</span>'
-        if self.errors:
-            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'
-        return s
-
-    def __str__(self):
-        if Repr.DEFAULT not in self.content:
-            return '[Item has no default representation]'
-        s = self.content[Repr.DEFAULT]
-        if self.errors:
-            return 'Errors:\n    ' + '\n    '.join(self.errors) + '\n' + s
-        return s
-
-
-class Items(object):
-    """ A collection of `Item` objects """
-
-    def __init__(self, items: list[Item]):
-        self.items: list[Item] = items
-        self.errors: list[str] = []
-
-    @classmethod
-    def from_vals(cls, repr_: Repr, vals: list[str]) -> 'Items':
-        items = Items([])
-        for i, v in enumerate(vals):
-            item = Item(i).with_repr(repr_, v)
-            if repr_ == Repr.SENTENCE:
-                item.content[Repr.SENTENCE_ORIG] = v
-            items.items.append(item)
-        return items
-
-    def merge(self, items: 'Items'):
-        self.items = self.items + items.items
-        self.errors = self.errors + items.errors
-
-    def with_errors(self, errors: list[str]) -> 'Items':
-        self.errors = self.errors + errors
-        return self
-
-    def html(self) -> str:
-        s = '<br/>'.join([i.html() for i in self.items])
-        if self.errors:
-            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'
-        return s
-
-    def __str__(self):
-        items = '\n'.join([str(item) for item in self.items])
-        if self.errors:
-            return '\n'.join(self.errors) + '\n\n' + items
-        return items
-
-
-import glif.glif as Glif
+# from . import glif
+from .glif_abc import GlifABC as Glif
 
 
 class Command(object):
     is_executable: bool = False
     is_applicable: bool = False
 
-    def execute(self, glif: 'Glif.Glif') -> Items:
+    def execute(self, glif: Glif) -> Items:
         """ If no input is/can provided """
         assert self.is_executable
         return Items([])
 
-    def apply(self, glif: 'Glif.Glif', items: Items) -> Items:
+    def apply(self, glif: Glif, items: Items) -> Items:
         """ If input is provided (`items`) """
         assert self.is_applicable
         new_items = Items([])
@@ -141,7 +29,7 @@ class Command(object):
             new_items.merge(self._apply_item(glif, item))
         return new_items
 
-    def _apply_item(self, glif: 'Glif.Glif', item: Item) -> Items:
+    def _apply_item(self, glif: Glif, item: Item) -> Items:
         raise NotImplementedError()
 
 
@@ -165,11 +53,10 @@ class CommandType(object):
     def _basiccommand_to_command(self, cmd: BasicCommand) -> Command:
         raise NotImplementedError()
 
+    #     def get_short_descr(self, glif: Glif) -> str:
+    #         return 'No description available'
 
-#     def get_short_descr(self, glif: 'Glif.Glif') -> str:
-#         return 'No description available'
-
-    def get_long_descr(self, glif: 'Glif.Glif') -> str:
+    def get_long_descr(self, glif: Glif) -> str:
         return 'No description available'
 
 
@@ -234,12 +121,12 @@ class GfCommandType(CommandType):
         self.inrepr = inrepr
         self.outrepr = outrepr
         if inrepr == Repr.AST:
-            self._split_mainarg_at_space = False   # e.g. "linearize abc (def ghi)"
+            self._split_mainarg_at_space = False  # e.g. "linearize abc (def ghi)"
 
     def _basiccommand_to_command(self, cmd: BasicCommand) -> Command:
         return GfCommand(cmd, self.inrepr, self.outrepr)
 
-    def get_long_descr(self, glif: 'Glif.Glif') -> str:
+    def get_long_descr(self, glif: Glif) -> str:
         if not self._long_description:
             gfresult = glif.get_gf_shell()
             if gfresult.success:
@@ -270,7 +157,7 @@ GF_COMMAND_TYPES: list[GfCommandType] = [
 # GLIF COMMANDS
 
 class NonApplicableCommand(Command):
-    def __init__(self, f: Callable[['Glif.Glif'], Result[list[str]]], outrepr: Repr = Repr.DEFAULT):
+    def __init__(self, f: Callable[[Glif], Result[list[str]]], outrepr: Repr = Repr.DEFAULT):
         self.f = f
         self.outrepr = outrepr
 
@@ -286,7 +173,7 @@ class NonApplicableCommand(Command):
 
 class NonApplicableCommandType(CommandType):
     def __init__(self, names: list[str],
-                 fgen: Callable[[BasicCommand], Callable[['Glif.Glif'], Result[list[str]]]],
+                 fgen: Callable[[BasicCommand], Callable[[Glif], Result[list[str]]]],
                  outrepr: Repr = Repr.DEFAULT):
         CommandType.__init__(self, names)
         self.fgen = fgen
@@ -297,7 +184,7 @@ class NonApplicableCommandType(CommandType):
 
 
 class OnlyApplicableCommand(Command):
-    def __init__(self, f: Callable[['Glif.Glif', Items], Items], mainArgs: Optional[Items]):
+    def __init__(self, f: Callable[[Glif, Items], Items], mainArgs: Optional[Items]):
         self.f = f
         self.mainArgs = mainArgs
         if self.mainArgs:
@@ -320,7 +207,7 @@ class OnlyApplicableCommand(Command):
 
 
 class OnlyApplicableCommandType(CommandType):
-    def __init__(self, names: list[str], fgen: Callable[[BasicCommand], Callable[['Glif.Glif', Items], Items]],
+    def __init__(self, names: list[str], fgen: Callable[[BasicCommand], Callable[[Glif, Items], Items]],
                  arg_repr: Repr):
         CommandType.__init__(self, names)
         self.fgen = fgen
@@ -381,7 +268,7 @@ def wrong_command_pattern_response(cmd: BasicCommand,
 
 
 def import_helper(cmd: BasicCommand):
-    def _import_helper(glif: Glif.Glif) -> Result[list[str]]:
+    def _import_helper(glif: Glif) -> Result[list[str]]:
         pr = wrong_command_pattern_response(cmd, allowed_key_args=[], allowed_key_val_args=[], min_main_args=1)
         if pr:
             return pr
@@ -419,7 +306,7 @@ def import_helper(cmd: BasicCommand):
 
 
 def archive_helper(cmd: BasicCommand):
-    def _archive_helper(glif: Glif.Glif) -> Result[list[str]]:
+    def _archive_helper(glif: Glif) -> Result[list[str]]:
         pr = wrong_command_pattern_response(cmd, allowed_key_args=[], allowed_key_val_args=[], min_main_args=1,
                                             max_main_args=2)
         if pr:
@@ -441,7 +328,8 @@ def archive_helper(cmd: BasicCommand):
 
 
 def status_helper(cmd: BasicCommand):
-    def _status_helper(glif: Glif.Glif) -> Result[list[str]]:
+    def _status_helper(glif: Any) -> Result[list[str]]:
+        # Note make glif: Any as it has to work with the internals of Glif, which are not offered by GlifABC
         pr = wrong_command_pattern_response(cmd,
                                             allowed_key_args=[{'load-gf'}, {'load-mmt'}, {'gf-logs'}, {'mmt-logs'}],
                                             allowed_key_val_args=[], min_main_args=0, max_main_args=0)
@@ -452,7 +340,7 @@ def status_helper(cmd: BasicCommand):
         gflogs = any(arg.key in {'gf-logs'} for arg in cmd.args)
         mmtlogs = any(arg.key in {'mmt-logs'} for arg in cmd.args)
 
-        result = ['Current working directory: ' + glif.cwd]
+        result = ['Current working directory: ' + glif._cwd]
 
         # GF
         if loadgf:
@@ -510,12 +398,13 @@ def status_helper(cmd: BasicCommand):
 
 
 def construct_helper(cmd: BasicCommand):
-    def _construct_helper(glif: Glif.Glif, items: Items) -> Items:
+    def _construct_helper(glif: Glif, items: Items) -> Items:
         pr = wrong_command_pattern_response(cmd, allowed_key_args=[{'de', 'delta-expand'}, {'no-simplify'}],
                                             allowed_key_val_args=[{'v', 'view'}])
         if pr:
             return Items([]).with_errors([pr.logs])
-        view = cmd.get_val_or_default({'v', 'view'}, glif.defaultview if glif.defaultview else '')
+        defaultview = glif.get_defaultview()
+        view = cmd.get_val_or_default({'v', 'view'}, defaultview if defaultview else '')
         delta = any(arg.key in {'de', 'delta-expand'} for arg in cmd.args)
         simplify = not any(arg.key in {'no-simplify'} for arg in cmd.args)
         if not view:
@@ -562,13 +451,14 @@ def construct_helper(cmd: BasicCommand):
 
 
 def filter_helper(cmd: BasicCommand):
-    def _filter_helper(glif: Glif.Glif, items: Items) -> Items:
+    def _filter_helper(glif: Glif, items: Items) -> Items:
         pr = wrong_command_pattern_response(cmd, allowed_key_args=[{'notc', 'no-typechecking'}],
                                             allowed_key_val_args=[{'f', 'file'}, {'p', 'predicate'}])
         if pr:
             return Items([]).with_errors([pr.logs])
         typecheck = not any(arg.key in {'notc', 'no-typechecking'} for arg in cmd.args)
-        file = cmd.get_val_or_default({'f', 'file'}, glif.defaultelpi if glif.defaultelpi else '')
+        defaultview = glif.get_defaultview()
+        file = cmd.get_val_or_default({'f', 'file'}, defaultview if defaultview else '')
         if not file:
             return Items([]).with_errors(
                 ['No ELPI file was specified for the "{cmd.name}" command and now default file is available.'])
@@ -591,7 +481,7 @@ def filter_helper(cmd: BasicCommand):
             expressions.append(expr.strip() + '.')
 
         stdin = '\n'.join(expressions + ['glif.endofitems.'])
-        r = runelpi(glif.cwd, file, f'glif.filter {predicate}', typecheck, stdin)
+        r = runelpi(glif.get_cwd(), file, f'glif.filter {predicate}', typecheck, stdin)
         if not r.success:
             return items.with_errors(items.errors + [r.logs])
         tokeep = []
@@ -611,7 +501,7 @@ def filter_helper(cmd: BasicCommand):
 
 
 def elpigen_helper(cmd: BasicCommand):
-    def _elpigen_helper(glif: Glif.Glif) -> Result[list[str]]:
+    def _elpigen_helper(glif: Glif, items: Items) -> Result[list[str]]:
         pr = wrong_command_pattern_response(cmd, allowed_key_args=[{'with-meta', 'wm'}, {'no-includes', 'ni'}],
                                             allowed_key_val_args=[{'f', 'file'}, {'m', 'mode'}], min_main_args=1,
                                             max_main_args=1)
@@ -642,7 +532,7 @@ def elpigen_helper(cmd: BasicCommand):
         if not r.success:
             return Result(False, [], 'Failed to generate ELPI code:\n' + r.logs)
         assert r.value
-        with open(os.path.join(glif.cwd, file), 'w') as f:
+        with open(os.path.join(glif.get_cwd(), file), 'w') as f:
             f.write(r.value)
         return Result(True, [f'Successfully created {file}'])
 

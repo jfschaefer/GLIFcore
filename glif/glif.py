@@ -1,6 +1,8 @@
 from typing import Optional
 from distutils.spawn import find_executable
-from . import gf, mmt, parsing, utils
+
+import glif.items
+from . import gf, mmt, parsing, utils, glif_abc
 from . import commands as cmd
 import os
 
@@ -9,7 +11,7 @@ from .utils import Result
 DEFAULT_ARCHIVE = 'tmpGLIF/default'
 
 
-class Glif(object):
+class Glif(glif_abc.GlifABC):
     def __init__(self):
         # GF
         self._gfshell: Optional[gf.GFShellRaw] = None
@@ -24,7 +26,7 @@ class Glif(object):
         self._mmtFailedStartupMessage: Optional[str] = None
         self._init_mmt_location()
 
-        self.defaultview: Optional[str] = None
+        self._defaultview: Optional[str] = None
 
         # ELPI
         self.defaultelpi: Optional[str] = None
@@ -32,13 +34,14 @@ class Glif(object):
 
         self._archive: Optional[str] = None
         self._subdir: Optional[str] = None
+        self._cwd: str
         if self.mh:
             if DEFAULT_ARCHIVE not in self.mh.archives:
                 assert self.mh.make_archive(DEFAULT_ARCHIVE).success
-            self.cwd = os.path.join(self.mh.archives[DEFAULT_ARCHIVE], 'source')
+            self._cwd = os.path.join(self.mh.archives[DEFAULT_ARCHIVE], 'source')
             self._archive = DEFAULT_ARCHIVE
         else:
-            self.cwd = os.getcwd()
+            self._cwd = os.getcwd()
         self._commands: dict[str, cmd.CommandType] = {}  # command name -> command type
         self._load_initial_commands()
 
@@ -67,9 +70,9 @@ class Glif(object):
         self._archive = archive
         self._subdir = subdir
         if self._subdir:
-            self.cwd = os.path.join(self.mh.archives[self._archive], 'source', self._subdir)
+            self._cwd = os.path.join(self.mh.archives[self._archive], 'source', self._subdir)
         else:
-            self.cwd = os.path.join(self.mh.archives[self._archive], 'source')
+            self._cwd = os.path.join(self.mh.archives[self._archive], 'source')
         if new_archive_created and self._mmt:
             self._mmt.do_shutdown()
             self._mmt = None
@@ -88,6 +91,12 @@ class Glif(object):
         return Result(False, None,
                       'No MMT archive selected. This is probably due to problems during the initialization of MMT. '
                       'Here are the logs:\n' + parsing.indent("\n".join(self._findMMTlogs)))
+
+    def get_defaultview(self) -> Optional[str]:
+        return self._defaultview
+
+    def get_cwd(self) -> str:
+        return self._cwd
 
     def _init_mmt_location(self):
         # JAR
@@ -128,7 +137,7 @@ class Glif(object):
             for name in ct.names:
                 self._commands[name] = ct
 
-    def execute_cell(self, code: str) -> list[Result[cmd.Items]]:
+    def execute_cell(self, code: str) -> list[Result[glif.items.Items]]:
         file_r = parsing.identify_file(code)
         if file_r.success:
             assert file_r.value
@@ -138,7 +147,7 @@ class Glif(object):
             archiveresult = self.get_archive_subdir()
             if ending == 'mmt' and not archiveresult.success:
                 return [Result(False, None, archiveresult.logs)]
-            with open(os.path.join(self.cwd, f'{name}.{ending}'), 'w', encoding='utf8') as fp:
+            with open(os.path.join(self._cwd, f'{name}.{ending}'), 'w', encoding='utf8') as fp:
                 if type_ in ['mmt-view', 'mmt-theory']:
                     assert archiveresult.value
                     archive, subdir = archiveresult.value
@@ -155,18 +164,18 @@ class Glif(object):
                 result = self.execute_command(f'import "{name}.{ending}"')
             finally:
                 self._typecheckelpi = False
-            if result.success and type_ == 'mmt-view' and self.defaultview != name:
+            if result.success and type_ == 'mmt-view' and self._defaultview != name:
                 if result.logs:
                     result.logs += '\n'
                 result.logs += f'"{name}" is the new default view'
-                self.defaultview = name
+                self._defaultview = name
 
             return [result]
 
         # TODO: comments and multiple commands
         return self.execute_commands(code)
 
-    def execute_commands(self, code: str) -> list[Result[cmd.Items]]:
+    def execute_commands(self, code: str) -> list[Result[glif.items.Items]]:
         results = []
         currentcommand = ''
         for line in code.splitlines():
@@ -187,7 +196,7 @@ class Glif(object):
             return [Result(False, logs=f'No command given')]
         return results
 
-    def execute_command(self, command: str) -> Result[cmd.Items]:
+    def execute_command(self, command: str) -> Result[glif.items.Items]:
         items = None
         rest = command.strip()
         while rest:
@@ -247,7 +256,7 @@ class Glif(object):
                     success = False
                 else:
                     assert rrr.value is not None
-                    with open(os.path.join(self.cwd, os.path.splitext(filename)[0] + '.elpi'), 'w',
+                    with open(os.path.join(self._cwd, os.path.splitext(filename)[0] + '.elpi'), 'w',
                               encoding='utf8') as fp:
                         fp.write(rrr.value)
         else:
@@ -270,14 +279,14 @@ class Glif(object):
         return Result(True)
 
     def import_elpi_file(self, filename: str) -> Result[None]:
-        fullpath = os.path.join(self.cwd, filename)
+        fullpath = os.path.join(self._cwd, filename)
 
         # using f'elpi -I {__file__}' instead
         # shutil.copyfile(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'glif.elpi'),
         #         os.path.join(os.path.dirname(fullpath), 'glif.elpi'))
 
         if self._typecheckelpi:
-            er = utils.runelpi(self.cwd, fullpath, 'glifutil.success')
+            er = utils.runelpi(self._cwd, fullpath, 'glifutil.success')
             if not er.success:
                 return Result(False, logs=er.logs)
             assert er.value
@@ -294,7 +303,7 @@ class Glif(object):
         if not self._gfshell and self._gfshellFailedLogs is None:
             place = find_executable('gf')
             if place:
-                self._gfshell = gf.GFShellRaw(place, cwd=self.cwd)
+                self._gfshell = gf.GFShellRaw(place, cwd=self._cwd)
             else:
                 self._gfshellFailedLogs = 'Failed to locate executable "gf"'
         if self._gfshell:
