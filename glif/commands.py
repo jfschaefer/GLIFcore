@@ -5,8 +5,8 @@ from distutils.spawn import find_executable
 from enum import Enum
 from typing import Callable
 
-from glif.parsing import *
-from glif.utils import runelpi
+from .parsing import *
+from .utils import runelpi
 
 
 class Repr(Enum):
@@ -120,7 +120,7 @@ class Items(object):
         return items
 
 
-import glif.Glif as Glif
+import glif.glif as Glif
 
 
 class Command(object):

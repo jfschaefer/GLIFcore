@@ -2,12 +2,12 @@ import os
 import requests
 import subprocess
 import simplejson.errors  # type: ignore
-import glif.utils as utils
 import xml.etree.ElementTree as ET  # need XML processing for uncaught MMT exceptions
-from glif.utils import Result
 import threading
-
 from typing import Optional, Any
+
+from . import utils
+from .utils import Result
 
 GLIF_BUILD_EXTENSION = 'info.kwarc.mmt.glf.GlfBuildServer'
 GLIF_CONSTRUCT_EXTENSION = 'info.kwarc.mmt.glf.GlfConstructServer'

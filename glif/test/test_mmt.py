@@ -2,8 +2,8 @@ import unittest
 import os
 import shutil
 
-from glif import mmt
-from glif import utils
+from .. import mmt
+from .. import utils
 
 # TODO: Use unittest.mock to overwrite `os.getenv` to simulate missing MMT installation
 # (https://realpython.com/python-mock-library/)

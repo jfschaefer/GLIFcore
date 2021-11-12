@@ -1,1 +1,2 @@
 include glif/*.elpi
+include glif/test/resources

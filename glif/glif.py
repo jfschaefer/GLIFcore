@@ -1,12 +1,10 @@
 from typing import Optional
 from distutils.spawn import find_executable
-import glif.gf as gf
-import glif.commands as cmd
-import glif.parsing as parsing
-import glif.mmt as mmt
-import glif.utils as utils
-from glif.utils import Result
+from . import gf, mmt, parsing, utils
+from . import commands as cmd
 import os
+
+from .utils import Result
 
 DEFAULT_ARCHIVE = 'tmpGLIF/default'
 

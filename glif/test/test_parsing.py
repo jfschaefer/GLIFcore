@@ -1,9 +1,8 @@
 import unittest
 from typing import Optional
 
-from glif import parsing
-from glif import utils
-from glif import commands
+from .. import parsing
+from .. import utils
 
 
 class TestBasicParsing(unittest.TestCase):

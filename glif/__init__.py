@@ -1,1 +1,1 @@
-from glif.Glif import Glif
+from .glif import Glif
