@@ -1,6 +1,6 @@
 import html
 from enum import Enum
-from typing import Optional
+from typing import Optional, Callable
 
 from glif.utils import Result
 
@@ -114,3 +114,10 @@ class Items(object):
         if self.errors:
             return '\n'.join(self.errors) + '\n\n' + items
         return items
+
+    def flatmap(self, fn: Callable[[Item], 'Items']):
+        new_items = Items([])
+        new_items.errors = self.errors
+        for item in self.items:
+            new_items.merge(fn(item))
+        return new_items

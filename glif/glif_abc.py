@@ -7,7 +7,8 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .utils import Result
-from . import mmt, items, gf
+from . import mmt, gf
+from .commands import items
 
 
 class GlifABC(ABC):
@@ -21,6 +22,9 @@ class GlifABC(ABC):
         raise NotImplementedError()
 
     def get_defaultview(self) -> Optional[str]:
+        return None
+
+    def get_defaultelpi(self) -> Optional[str]:
         return None
 
     @abstractmethod

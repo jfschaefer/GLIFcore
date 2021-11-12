@@ -1,7 +1,7 @@
 from typing import Optional
 from distutils.spawn import find_executable
 
-import glif.items
+import glif.commands.items
 from . import gf, mmt, parsing, utils, glif_abc
 from . import commands as cmd
 import os
@@ -29,7 +29,7 @@ class Glif(glif_abc.GlifABC):
         self._defaultview: Optional[str] = None
 
         # ELPI
-        self.defaultelpi: Optional[str] = None
+        self._defaultelpi: Optional[str] = None
         self._typecheckelpi: bool = False
 
         self._archive: Optional[str] = None
@@ -95,6 +95,9 @@ class Glif(glif_abc.GlifABC):
     def get_defaultview(self) -> Optional[str]:
         return self._defaultview
 
+    def get_defaultelpi(self) -> Optional[str]:
+        return self._defaultelpi
+
     def get_cwd(self) -> str:
         return self._cwd
 
@@ -137,7 +140,7 @@ class Glif(glif_abc.GlifABC):
             for name in ct.names:
                 self._commands[name] = ct
 
-    def execute_cell(self, code: str) -> list[Result[glif.items.Items]]:
+    def execute_cell(self, code: str) -> list[Result[glif.commands.items.Items]]:
         file_r = parsing.identify_file(code)
         if file_r.success:
             assert file_r.value
@@ -175,7 +178,7 @@ class Glif(glif_abc.GlifABC):
         # TODO: comments and multiple commands
         return self.execute_commands(code)
 
-    def execute_commands(self, code: str) -> list[Result[glif.items.Items]]:
+    def execute_commands(self, code: str) -> list[Result[glif.commands.items.Items]]:
         results = []
         currentcommand = ''
         for line in code.splitlines():
@@ -196,7 +199,7 @@ class Glif(glif_abc.GlifABC):
             return [Result(False, logs=f'No command given')]
         return results
 
-    def execute_command(self, command: str) -> Result[glif.items.Items]:
+    def execute_command(self, command: str) -> Result[glif.commands.items.Items]:
         items = None
         rest = command.strip()
         while rest:
@@ -294,7 +297,7 @@ class Glif(glif_abc.GlifABC):
             if warning:
                 return Result(False, logs=warning)
 
-        self.defaultelpi = fullpath
+        self._defaultelpi = fullpath
         r: Result[None] = Result(True)
         r.logs = f'{filename} is the new default file for ELPI commands'
         return r
