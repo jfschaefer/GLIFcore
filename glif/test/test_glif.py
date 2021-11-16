@@ -47,7 +47,6 @@ class TestGlif(unittest.TestCase):
         self.command_test('parse -cat=S "someone loves someone" | construct -view=MiniGrammarSemantics',
                           output='∃[x]∃(love x)')
 
-
         r = self.glif.execute_command('ps "Hello World" | ps -unchars')
         self.assertEqual(str(r.value), 'HelloWorld')
         self.assertTrue(r.success)
@@ -97,6 +96,26 @@ class TestGlif(unittest.TestCase):
         # but (in GLIF) we require quotation marks for non-AST arguments with spaces
         self.command_test('ps "abc def"', output="abc def")
         self.command_test('ps abc def', output="abc\ndef")
+
+    def test_stubgen(self):
+        self.command_test(f'archive {TEST_ARCHIVE} mini')
+
+        # SEMANTICS CONSTRUCTION VIEW
+        result = self.glif.stub_gen('view MiniGrammarSem')
+        self.assertTrue(result.success)
+        assert result.value
+        # details (e.g. indentation) might change -> only check small parts
+        self.assertIn('// love : NP ⟶ VP ❙', result.value)
+        self.assertIn('love = _ ❙', result.value)
+
+        # CONCRETE SYNTAX
+        result = self.glif.stub_gen('concrete MiniGrammarIt')
+        self.assertTrue(result.success)
+        assert result.success
+        self.assertIn('concrete MiniGrammarIt of MiniGrammar = {', result.value)
+        self.assertIn('-- love : NP -> VP', result.value)
+        self.assertIn('love _ = _ ;', result.value)
+
 
 if __name__ == '__main__':
     unittest.main()

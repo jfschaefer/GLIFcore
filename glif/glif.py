@@ -2,7 +2,7 @@ from typing import Optional
 from distutils.spawn import find_executable
 
 import glif.commands.items
-from . import gf, mmt, parsing, utils, glif_abc
+from . import gf, mmt, parsing, utils, glif_abc, stub_gen
 from . import commands as cmd
 import os
 
@@ -42,7 +42,7 @@ class Glif(glif_abc.GlifABC):
             self._archive = DEFAULT_ARCHIVE
         else:
             self._cwd = os.getcwd()
-        self._commands: dict[str, cmd.CommandType] = {}  # command name -> command type
+        self._commands: dict[str, cmd.command.CommandType] = {}  # command name -> command type
         self._load_initial_commands()
 
     def set_archive(self, archive: str, subdir: Optional[str], create: bool = False) -> Result[str]:
@@ -317,6 +317,18 @@ class Glif(glif_abc.GlifABC):
         else:
             assert self._gfshellFailedLogs
             return Result(False, logs=self._gfshellFailedLogs)
+
+    def stub_gen(self, target: str) -> Result[str]:
+        archiveresult = self.get_archive_subdir()
+        if archiveresult.success:
+            assert archiveresult.value
+            archive, subdir = archiveresult.value
+            base = f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}'
+            return stub_gen.generate(target, self.get_cwd(), base)
+        elif target.startswith('concrete'):
+            return stub_gen.generate(target, self.get_cwd(), None)
+        else:
+            return Result(False, None, archiveresult.logs)
 
     def do_shutdown(self):
         if self._gfshell:

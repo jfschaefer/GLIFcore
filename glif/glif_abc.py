@@ -32,6 +32,10 @@ class GlifABC(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def stub_gen(self, target: str) -> Result[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
     def get_cwd(self) -> str:
         raise NotImplementedError()
 
