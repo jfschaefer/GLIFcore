@@ -53,7 +53,8 @@ class GlifCommandType(CommandType):
                  max_main_args: Optional[int] = None, main_args_as_items: bool = False,
                  inrepr: Optional[Repr] = None,
                  execute_fn: Optional[Callable[[Glif, dict[str, str], set[str], list[str]], Items]] = None,
-                 apply_fn: Optional[Callable[[Glif, dict[str, str], set[str], list[str], Items], Items]] = None):
+                 apply_fn: Optional[Callable[[Glif, dict[str, str], set[str], list[str], Items], Items]] = None,
+                 example_calls: list[str] = []):
         super().__init__(names)
         self.arguments = arguments
         self.str_to_arg: dict[str, GlifArg] = {}
@@ -70,11 +71,17 @@ class GlifCommandType(CommandType):
             assert self.inrepr
 
         # generate description
-        self._long_descr = f'{description}\n\nArguments:\n'
+        self._long_descr = f'{description}\n\nFlags:\n'
         if not arguments:
             self._long_descr += '    None'
         else:
             self._long_descr += '\n\n'.join((indent(str(arg), 4) for arg in arguments))
+        self._long_descr += '\n\nExample calls:\n'
+        if example_calls:
+            self._long_descr += '\n'.join((indent(ec, 4) for ec in example_calls))
+        else:
+            self._long_descr += '    None'
+
 
 
 

@@ -26,7 +26,8 @@ def help_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: li
 
 HELP_COMMAND_TYPE = GlifCommandType(
     names=['help', 'h'],
-    arguments=[ ],
+    arguments=[],
     description='Prints information about available GLIF commands',
     execute_fn=help_helper,
+    example_calls=['help', 'help construct'],
 )

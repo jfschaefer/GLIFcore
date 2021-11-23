@@ -52,4 +52,16 @@ namespace glif {
     filter_actual F [I|_] :- F I, getId I Id, print "filter-output:" Id, fail.
     filter_actual F [_|R] :- filter_actual F R.
     filter_actual _ [].
+
+    type query int -> prop -> (list String) -> prop.
+    query N X [] :-
+        N > 0,
+        new_safe S,
+        X,
+        print "Query succeeded",
+        stash_in_safe S 0,
+        open_safe S L,
+        std.length L N.  % backtrack until the length has been reached
+    query _ _ [] :-
+        print "Query failed".
 }

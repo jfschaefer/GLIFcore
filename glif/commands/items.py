@@ -66,7 +66,8 @@ class Item(object):
                     html.escape(self.content[Repr.DEFAULT]).replace('\n', '<br/>').replace('  ', '&nbsp;&nbsp;') +\
                  '</span>'
         if self.errors:
-            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'
+            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' +\
+                 '<br/>'.join([e.replace('\n', '<br/>') for e in self.errors]) + '</span>'
         return s
 
     def __str__(self):
@@ -106,7 +107,8 @@ class Items(object):
     def html(self) -> str:
         s = '<br/>'.join([i.html() for i in self.items])
         if self.errors:
-            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' + '<br/>'.join(self.errors) + '</span>'
+            s += '\n<br/><span class="glif-stderr"><b>Errors</b><br/>' +\
+                 '<br/>'.join([e.replace('\n', '<br/>') for e in self.errors]) + '</span>'
         return s
 
     def __str__(self):

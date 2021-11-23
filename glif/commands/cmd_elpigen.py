@@ -41,7 +41,7 @@ ELPIGEN_COMMAND_TYPE = GlifCommandType(
     arguments=[
         GlifArg(['with-meta', 'wm'], 'Also generate ELPI code for meta theories'),
         GlifArg(['no-includes', 'ni'], 'Don\'t generate ELPI code for included theories'),
-        GlifArg(['file', 'f'], 'The file to generate ELPI code from', default_value='$DEFAULT'),
+        GlifArg(['file', 'f'], 'File name for the generated ELPI code', default_value='$DEFAULT'),
         GlifArg(['mode', 'm'], 'The mode of ELPI generation', default_value='types',
                 value_set={'types', 'simpleprover'}),
     ],
@@ -49,4 +49,5 @@ ELPIGEN_COMMAND_TYPE = GlifCommandType(
     min_main_args=1,
     max_main_args=1,
     execute_fn=elpigen_helper,
+    example_calls=['elpigen proplog']
 )
