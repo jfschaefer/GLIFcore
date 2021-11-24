@@ -6,7 +6,7 @@ from .glif_command import GlifCommandType, GlifArg
 from ..elpi import runelpi, items_to_stdin
 
 
-def filter_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str], items: Items) -> Items:
+def apply_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str], items: Items) -> Items:
     typecheck = 'no-typechecking' not in keys
     with_ast = 'with-AST' in keys
     file: Optional[str] = keyval['file']
@@ -18,34 +18,31 @@ def filter_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: 
     if not file.endswith('.elpi'):
         file += '.elpi'
     predicate = keyval['predicate']
-    stdin = items_to_stdin(items, with_ast)
-    r = runelpi(glif.get_cwd(), file, f'glif.filter {predicate}', typecheck, stdin)
-    if not r.success:
-        return items.with_errors(items.errors + [r.logs])
-    tokeep = []
-    output = []
-    assert r.value
-    for line in r.value[0].splitlines():
-        line = line.strip()
-        if line.startswith('filter-output:'):
-            tokeep.append(int(line[len('filter-output:'):].strip()))
-        elif line:
-            output.append(line)
-    items.items = [items.items[i] for i in tokeep]
-    items.with_errors(output)
-    return items
+    new_items = Items([])
+    new_items.errors = items.errors
+    for item in items.items:
+        stdin = items_to_stdin(Items([item]), with_ast)
+        r = runelpi(glif.get_cwd(), file, f'glif.apply_to_item {predicate}', typecheck, stdin)
+        if not r.success:
+            return items.with_errors(items.errors + [r.logs])
+        if not r.success:
+            new_items.errors.append(r.logs)
+            continue
+        new_item = item.get_clone().with_repr(Repr.DEFAULT, r.value[0])
+        new_items.items.append(new_item)
+    return new_items
 
 
-FILTER_COMMAND_TYPE = GlifCommandType(
-    names=['filter'],
+APPLY_COMMAND_TYPE = GlifCommandType(
+    names=['apply'],
     arguments=[
         GlifArg(names=['no-typechecking', 'notc', 'no-tc'], description='Disable type checking'),
         GlifArg(names=['file', 'f'], description='Elpi file', default_value='$DEFAULT'),
-        GlifArg(names=['predicate', 'p'], description='Filter predicate', default_value='filter'),
+        GlifArg(names=['predicate', 'p'], description='Predicate to be applied', default_value='apply'),
         GlifArg(names=['with-AST', 'wA'], description='Include ASTs if available'),
     ],
-    description='Filters logical expressions using ELPI',
-    apply_fn=filter_helper,
+    description='Applies an ELPI predicate to logical expressions and returns the output',
+    apply_fn=apply_helper,
     inrepr=Repr.LOGIC_ELPI,
     main_args_as_items=True,
 )

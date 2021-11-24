@@ -2,6 +2,7 @@ from typing import Optional
 from distutils.spawn import find_executable
 
 import glif.commands.items
+import glif.elpi
 from . import gf, mmt, parsing, utils, glif_abc, stub_gen
 from . import commands as cmd
 import os
@@ -292,7 +293,7 @@ class Glif(glif_abc.GlifABC):
         #         os.path.join(os.path.dirname(fullpath), 'glif.elpi'))
 
         if self._typecheckelpi:
-            er = utils.runelpi(self._cwd, fullpath, 'glifutil.success')
+            er = glif.elpi.runelpi(self._cwd, fullpath, 'glifutil.success')
             if not er.success:
                 return Result(False, logs=er.logs)
             assert er.value

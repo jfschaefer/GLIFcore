@@ -3,17 +3,17 @@ from typing import Optional
 from ..glif_abc import GlifABC as Glif
 from .items import Items, Repr
 from .glif_command import GlifCommandType, GlifArg
-from ..utils import runelpi
+from ..elpi import runelpi
 
 
 def query_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str], items: Items) -> Items:
-    typecheck = 'no-typechecking' in keys
+    typecheck = 'no-typechecking' not in keys
     file: Optional[str] = keyval['file']
     if file == '$DEFAULT':
         file = glif.get_defaultelpi()
     if not file:
         return Items([]).with_errors(
-            ['No ELPI file was specified for the "{cmd.name}" command and now default file is available.'])
+            ['No ELPI file was specified for the "{cmd.name}" command and no default file is available.'])
     if not file.endswith('.elpi'):
         file += '.elpi'
 
@@ -22,11 +22,12 @@ def query_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: l
     for item in items.items:
         query = item.try_get_repr(Repr.DEFAULT)
         assert query.value
-        r = runelpi(glif.get_cwd(), file, f'glif.query {keyval["number"]} ({query.value})', typecheck)
+        r = runelpi(glif.get_cwd(), file, f'glif.query {keyval["number"]} ({query.value})', typecheck,
+                    filterstderr=True)
         if not r.success:
             new_items.errors.append(r.logs)
             continue
-        new_item = item.get_clone().with_repr(Repr.DEFAULT, r.value[0] + '\n\n' + r.value[1].strip())
+        new_item = item.get_clone().with_repr(Repr.DEFAULT, r.value[0] + r.value[1].strip())
         new_items.items.append(new_item)
     return new_items
 

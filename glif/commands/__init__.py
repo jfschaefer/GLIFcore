@@ -10,6 +10,7 @@ from .cmd_elpigen import ELPIGEN_COMMAND_TYPE
 from .cmd_filter import FILTER_COMMAND_TYPE
 from .cmd_help import HELP_COMMAND_TYPE
 from .cmd_query import QUERY_COMMAND_TYPE
+from .cmd_apply import APPLY_COMMAND_TYPE
 
 GLIF_COMMAND_TYPES = [
     IMPORT_COMMAND_TYPE,
@@ -20,4 +21,5 @@ GLIF_COMMAND_TYPES = [
     FILTER_COMMAND_TYPE,
     HELP_COMMAND_TYPE,
     QUERY_COMMAND_TYPE,
+    APPLY_COMMAND_TYPE,
 ]

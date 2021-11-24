@@ -12,7 +12,7 @@ class GlifArg(object):
     value_set: Optional[set[str]] = None
     names: list[str]
     description: str
-    default: Optional[str] = None   # no default => mandatory argument
+    default: Optional[str] = None  # no default => mandatory argument
 
     def __init__(self, names: list[str], description: str, has_value: Optional[bool] = None,
                  value_set: Optional[set[str]] = None, default_value: Optional[str] = None):
@@ -42,7 +42,6 @@ class GlifArg(object):
             r += '\n    Default value: ' + (self.default if self.default != '$DEFAULT' else 'chosen from context')
         r += '\n    ' + self.description
         return r
-
 
 
 class GlifCommandType(CommandType):
@@ -81,9 +80,6 @@ class GlifCommandType(CommandType):
             self._long_descr += '\n'.join((indent(ec, 4) for ec in example_calls))
         else:
             self._long_descr += '    None'
-
-
-
 
     def _basiccommand_to_command(self, cmd: BasicCommand) -> Result[Command]:
         args = self.extract_arguments(cmd)

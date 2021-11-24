@@ -44,7 +44,7 @@ namespace glif {
     readitems [].
 
     
-    % COMMANDS
+    % FILTER COMMAND
     type filter (item A L -> prop) -> list String -> prop.
     filter F _Args :- readitems Items, filter_actual F Items. %, std.length Items N, print "filter-summary:" N.
 
@@ -53,6 +53,7 @@ namespace glif {
     filter_actual F [_|R] :- filter_actual F R.
     filter_actual _ [].
 
+    % QUERY COMMAND
     type query int -> prop -> (list String) -> prop.
     query N X [] :-
         N > 0,
@@ -64,4 +65,11 @@ namespace glif {
         std.length L N.  % backtrack until the length has been reached
     query _ _ [] :-
         print "Query failed".
+
+    % APPLY COMMAND
+    type apply_to_item (item A L -> prop) -> list String -> prop.
+    apply_to_item F _args :- readitems Items, apply_to_item_actual F Items.
+    type apply_to_item_actual (item A L -> prop) -> list (item A L) -> prop.
+    apply_to_item_actual F [Item] :- !, F Item.
+    apply_to_item_actual _ _ :- print "Internal error: multiple items sent to glif.apply_to_item", fail.
 }
