@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Literal
 
 from ..glif_abc import GlifABC as Glif
 from .items import Items, Repr
@@ -22,8 +22,10 @@ def query_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: l
     for item in items.items:
         query = item.try_get_repr(Repr.DEFAULT)
         assert query.value
+        infofilter: Literal['none', 'full', 'partial'] = keyval['infofilter']   # type: ignore
+        assert infofilter in {'none', 'full', 'partial'}
         r = runelpi(glif.get_cwd(), file, f'glif.query {keyval["number"]} ({query.value})', typecheck,
-                    filterstderr=True)
+                    filterstderr=infofilter)
         if not r.success:
             new_items.errors.append(r.logs)
             continue
@@ -38,6 +40,8 @@ QUERY_COMMAND_TYPE = GlifCommandType(
         GlifArg(names=['no-typechecking', 'notc', 'no-tc'], description='Disable type checking'),
         GlifArg(names=['file', 'f'], description='Elpi file', default_value='$DEFAULT'),
         GlifArg(names=['number', 'n'], description='Number of results', default_value='1'),
+        GlifArg(names=['infofilter', 'if'], description='Filter information about e.g. execution time',
+                default_value='full', value_set={'none', 'partial', 'full'}),
     ],
     description='Runs an elpi query',
     apply_fn=query_helper,

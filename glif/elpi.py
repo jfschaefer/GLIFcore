@@ -1,7 +1,7 @@
 import os
 import subprocess
 from distutils.spawn import find_executable
-from typing import Optional
+from typing import Optional, Literal
 
 from glif.commands.items import Repr, Items
 from glif.utils import Result
@@ -9,7 +9,7 @@ from glif.utils import Result
 
 def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdin: str = '',
             args: Optional[list[str]] = None, isjusttypecheck: bool = False,
-            filterstderr: bool = False) -> Result[tuple[str, str]]:
+            filterstderr: Literal['none', 'partial', 'full'] = 'none') -> Result[tuple[str, str]]:
     elpipath = find_executable('elpi')
     if not elpipath:
         return Result(False, None, 'Failed to locate executable "elpi"')
@@ -47,13 +47,16 @@ def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdi
                       'ELPI ERROR: ' + str(
                           proc.returncode) + '\nOUTPUT:\n' + out + '\nERROR:\n' + err + '\nCALL:\n' + str(call))
 
-    if filterstderr:
+    if filterstderr != 'none':
         lines: list[str] = []
         for line in err.splitlines():
             if not line:
                 continue
             if line.startswith('Parsing time:') or line.startswith('Compilation time:') or \
-                    line.startswith('Success:'):
+                    line.startswith('Success:') or line.startswith('Typechecking time:'):
+                continue
+            if filterstderr == 'full' and (line.startswith('Time:') or line.startswith('Constraints:') or
+                                           line.startswith('State:')):
                 continue
             lines.append(line)
         err = '\n'.join(lines)

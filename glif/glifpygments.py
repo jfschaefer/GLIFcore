@@ -14,7 +14,7 @@ from mmtpygments.mmt_lexer import MMTLexer
 from pygments.lexer import RegexLexer, words, bygroups
 from pygments.token import Comment, Name, Whitespace, Generic, String, Keyword, Number, Punctuation
 
-import glif.commands.commands as commands
+import glif.commands as commands
 import glif.commands.gf_commands
 
 
@@ -52,7 +52,7 @@ class ELPILexer(RegexLexer):
             (r'([A-Z_]\w*)', Name.Variable),
             (r'(_)', Name.Variable),
             (r'(\s+)', Whitespace),
-            (r'(type|kind|accumulate)', Keyword),
+            (r'(type|kind|accumulate|pi)', Keyword),
             (words(('prop', 'type', 'int', 'fail', 'list', 'string', 'o'), suffix=r'\b').get(),
              Name.Builtin),
             (r'"([^"]|(\\"))*"', String),
