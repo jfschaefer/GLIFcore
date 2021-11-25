@@ -1,1 +1,0 @@
-from .glif import Glif

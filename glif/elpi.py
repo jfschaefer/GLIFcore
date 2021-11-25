@@ -4,7 +4,7 @@ from distutils.spawn import find_executable
 from typing import Optional, Literal
 
 from glif.commands.items import Repr, Items
-from glif.utils import Result
+from .utils import Result
 
 
 def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdin: str = '',

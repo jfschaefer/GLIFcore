@@ -14,8 +14,7 @@ from mmtpygments.mmt_lexer import MMTLexer
 from pygments.lexer import RegexLexer, words, bygroups
 from pygments.token import Comment, Name, Whitespace, Generic, String, Keyword, Number, Punctuation
 
-import glif.commands as commands
-import glif.commands.gf_commands
+from . import commands
 
 
 class GFLexer(RegexLexer):
@@ -66,7 +65,7 @@ class GLIFCommandLexer(RegexLexer):
     codemirror_name = 'GLIFCommand'
     rouge_original_source = '...'
 
-    glifcommands = [name for cmdt in commands.GLIF_COMMAND_TYPES + glif.commands.gf_commands.GF_COMMAND_TYPES for name in cmdt.names]
+    glifcommands = [name for cmdt in commands.GLIF_COMMAND_TYPES + commands.gf_commands.GF_COMMAND_TYPES for name in cmdt.names]
 
     tokens = {
         'root': [

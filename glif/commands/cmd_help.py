@@ -1,6 +1,6 @@
 from ..glif_abc import GlifABC as Glif
 from ..utils import indent
-from .items import Items, Repr
+from glif.commands.items import Items, Repr
 from .glif_command import GlifCommandType
 
 

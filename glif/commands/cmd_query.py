@@ -1,7 +1,7 @@
 from typing import Optional, Literal
 
 from ..glif_abc import GlifABC as Glif
-from .items import Items, Repr
+from glif.commands.items import Items, Repr
 from .glif_command import GlifCommandType, GlifArg
 from ..elpi import runelpi
 
@@ -29,6 +29,7 @@ def query_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: l
         if not r.success:
             new_items.errors.append(r.logs)
             continue
+        assert r.value
         new_item = item.get_clone().with_repr(Repr.DEFAULT, r.value[0] + r.value[1].strip())
         new_items.items.append(new_item)
     return new_items

@@ -8,7 +8,7 @@ from typing import Optional, Any
 
 from .utils import Result
 from . import mmt, gf
-from .commands import items
+from glif.commands import items
 
 
 class GlifABC(ABC):

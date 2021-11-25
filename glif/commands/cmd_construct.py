@@ -1,7 +1,7 @@
 from typing import Optional
 
 from ..glif_abc import GlifABC as Glif
-from .items import Items, Repr
+from glif.commands.items import Items, Repr
 from .glif_command import GlifCommandType, GlifArg
 
 

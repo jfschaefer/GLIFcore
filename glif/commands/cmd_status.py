@@ -2,7 +2,7 @@ import subprocess
 from distutils.spawn import find_executable
 from typing import Any
 
-from .items import Items, Repr
+from glif.commands.items import Items, Repr
 from .glif_command import GlifCommandType, GlifArg
 
 

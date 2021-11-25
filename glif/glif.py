@@ -1,10 +1,11 @@
 from typing import Optional
 from distutils.spawn import find_executable
 
-import glif.commands.items
-import glif.elpi
-from . import gf, mmt, parsing, utils, glif_abc, stub_gen
-from . import commands as cmd
+from glif import gf, mmt, parsing, utils, glif_abc, stub_gen, elpi
+from .commands import items
+import glif.commands.command as cmd
+from glif.commands.gf_commands import GF_COMMAND_TYPES
+from glif.commands.glif_command_types import GLIF_COMMAND_TYPES
 import os
 
 from .utils import Result
@@ -43,7 +44,7 @@ class Glif(glif_abc.GlifABC):
             self._archive = DEFAULT_ARCHIVE
         else:
             self._cwd = os.getcwd()
-        self._commands: dict[str, cmd.command.CommandType] = {}  # command name -> command type
+        self._commands: dict[str, cmd.CommandType] = {}  # command name -> command type
         self._load_initial_commands()
 
     def set_archive(self, archive: str, subdir: Optional[str], create: bool = False) -> Result[str]:
@@ -99,7 +100,7 @@ class Glif(glif_abc.GlifABC):
     def get_defaultelpi(self) -> Optional[str]:
         return self._defaultelpi
 
-    def get_commands(self) -> dict[str, cmd.command.CommandType]:
+    def get_commands(self) -> dict[str, cmd.CommandType]:
         return self._commands
 
     def get_cwd(self) -> str:
@@ -140,11 +141,11 @@ class Glif(glif_abc.GlifABC):
         return Result(True, self._mmt)
 
     def _load_initial_commands(self):
-        for ct in cmd.GLIF_COMMAND_TYPES + cmd.GF_COMMAND_TYPES:
+        for ct in GLIF_COMMAND_TYPES + GF_COMMAND_TYPES:
             for name in ct.names:
                 self._commands[name] = ct
 
-    def execute_cell(self, code: str) -> list[Result[glif.commands.items.Items]]:
+    def execute_cell(self, code: str) -> list[Result[items.Items]]:
         file_r = parsing.identify_file(code)
         if file_r.success:
             assert file_r.value
@@ -182,7 +183,7 @@ class Glif(glif_abc.GlifABC):
         # TODO: comments and multiple commands
         return self.execute_commands(code)
 
-    def execute_commands(self, code: str) -> list[Result[glif.commands.items.Items]]:
+    def execute_commands(self, code: str) -> list[Result[items.Items]]:
         results = []
         currentcommand = ''
         for line in code.splitlines():
@@ -203,7 +204,7 @@ class Glif(glif_abc.GlifABC):
             return [Result(False, logs=f'No command given')]
         return results
 
-    def execute_command(self, command: str) -> Result[glif.commands.items.Items]:
+    def execute_command(self, command: str) -> Result[items.Items]:
         items = None
         rest = command.strip()
         while rest:
@@ -293,7 +294,7 @@ class Glif(glif_abc.GlifABC):
         #         os.path.join(os.path.dirname(fullpath), 'glif.elpi'))
 
         if self._typecheckelpi:
-            er = glif.elpi.runelpi(self._cwd, fullpath, 'glifutil.success')
+            er = elpi.runelpi(self._cwd, fullpath, 'glifutil.success')
             if not er.success:
                 return Result(False, logs=er.logs)
             assert er.value
