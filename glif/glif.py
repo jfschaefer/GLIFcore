@@ -180,7 +180,6 @@ class Glif(glif_abc.GlifABC):
 
             return [result]
 
-        # TODO: comments and multiple commands
         return self.execute_commands(code)
 
     def execute_commands(self, code: str) -> list[Result[items.Items]]:

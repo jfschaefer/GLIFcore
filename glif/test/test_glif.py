@@ -53,6 +53,17 @@ class TestGlif(unittest.TestCase):
         assert r.value
         self.assertEqual(str(r.value), 'HelloWorld')
 
+    def test_empty_cell(self):
+        rs = self.glif.execute_cell('')
+        self.assertEqual(len(rs), 1)
+        self.assertFalse(rs[0].success)
+        rs = self.glif.execute_cell('-- Just a comment\n')
+        self.assertEqual(len(rs), 1)
+        self.assertFalse(rs[0].success)
+        rs = self.glif.execute_cell('-- Just a comment')
+        self.assertEqual(len(rs), 1)
+        self.assertFalse(rs[0].success)
+
     def test_gf_multiple_output(self):
         self.command_test(f'archive {TEST_ARCHIVE} mini')
         self.command_test('import MiniGrammar.gf MiniGrammarEng.gf')

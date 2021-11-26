@@ -238,13 +238,13 @@ def _skipto(s, i, s2):
         if n:
             return n
         i += 1
-    return 0
+    return -1
 
 
 def identify_file(s: str) -> Result[tuple[str, str, str]]:  # (type, name, content)
     i = 0
     while True:
-        if i >= len(s):
+        if i == -1 or i >= len(s):
             return Result(False)
         elif s[i].isspace():
             i += 1
