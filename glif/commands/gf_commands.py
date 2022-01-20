@@ -1,3 +1,4 @@
+import re
 from typing import Optional
 
 from .command import Command, CommandType
@@ -7,50 +8,56 @@ from ..parsing import BasicCommand
 from ..utils import Result
 
 
-
 class GfCommandType(CommandType):
     """ for standard GF commands """
 
-    def __init__(self, names: list[str], inrepr: Optional[Repr], outrepr: Repr):
+    def __init__(self, names: list[str], inrepr: Optional[Repr], outrepr: Repr,
+                 error_regex: Optional[re.Pattern] = None):
         super().__init__(names)
         self.inrepr = inrepr
         self.outrepr = outrepr
         if inrepr == Repr.AST:
             self._split_mainarg_at_space = False  # e.g. "linearize abc (def ghi)"
+        self.error_regex = error_regex
 
     def _basiccommand_to_command(self, cmd: BasicCommand) -> Result[Command]:
-        def run(glif: Glif, onItem: Optional[Item]) -> Items:
+        def run(glif: Glif, on_item: Optional[Item]) -> Items:
             gfshell = glif.get_gf_shell()
             if not gfshell.success:
-                return Items([]).with_errors((onItem.errors if onItem else []) + [gfshell.logs])
+                return Items([]).with_errors((on_item.errors if on_item else []) + [gfshell.logs])
             assert gfshell.value
-            if onItem:
+            if on_item:
                 assert self.inrepr
-                inp = onItem.try_get_repr(self.inrepr)
+                inp = on_item.try_get_repr(self.inrepr)
                 assert inp.value
                 output = gfshell.value.handle_command(cmd.gf_format(inp.value, self.inrepr != Repr.AST))
             else:
                 output = gfshell.value.handle_command(cmd.gf_format(None))
-            # TODO: Error handling
             errs: list[str] = []
             if self.outrepr == Repr.GRAPH_DOT:
                 vals = [output]
             else:
-                vals = [s.strip() for s in output.splitlines()]
-
-            if onItem:
+                vals: list[str] = []
+                for line in output.splitlines():
+                    line = line.strip()
+                    if self.error_regex and self.error_regex.match(line):
+                        errs.append(line)
+                    else:
+                        vals.append(line)
+            if on_item:
                 items = Items([]).with_errors(errs)
                 for val in vals:
-                    items.items.append(onItem.get_clone().with_repr(self.outrepr, val))
+                    items.items.append(on_item.get_clone().with_repr(self.outrepr, val))
                 return items
             else:
                 return Items.from_vals(self.outrepr, vals).with_errors(errs)
+
         if self.inrepr:
-            return Result(True, Command(self, lambda glif : run(glif, None),
+            return Result(True, Command(self, lambda glif: run(glif, None),
                                         lambda glif, items: items.flatmap(lambda item: run(glif, item)),
                                         Items.from_vals(self.inrepr, cmd.mainargs) if cmd.mainargs else None))
         else:
-            return Result(True, Command(self, lambda glif : run(glif, None), None, None))
+            return Result(True, Command(self, lambda glif: run(glif, None), None, None))
 
     def get_long_descr(self, glif: Glif) -> str:
         if not self._long_descr:
@@ -65,9 +72,8 @@ class GfCommandType(CommandType):
         else:
             return self._long_descr
 
-
 GF_COMMAND_TYPES: list[GfCommandType] = [
-    GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST),
+    GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST, error_regex=re.compile(r'The parser failed at token \d+: ".*"')),
     GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
     GfCommandType(['put_tree', 'pt'], Repr.AST, Repr.AST),
     # TODO: some sorting arguments probably won't work (e.g. `pt -smallest`)
