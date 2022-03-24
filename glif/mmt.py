@@ -11,6 +11,7 @@ from .utils import Result
 
 GLIF_BUILD_EXTENSION = 'info.kwarc.mmt.glf.GlfBuildServer'
 GLIF_CONSTRUCT_EXTENSION = 'info.kwarc.mmt.glf.GlfConstructServer'
+GLIF_ACCUMULATE_EXTENSION = 'info.kwarc.mmt.glf.GlfAccumulateServer'
 ELPI_GENERATION_EXTENSION = 'info.kwarc.mmt.glf.ElpiGenerationServer'
 MMT_STARTUP_TIMEOUT = 20
 
@@ -92,7 +93,7 @@ class MMTStartupException(Exception):
 class MMTServer(object):
     def __init__(self, mmt_jar: str):
         self.port = utils.find_free_port()
-        extensions = [GLIF_BUILD_EXTENSION, GLIF_CONSTRUCT_EXTENSION, ELPI_GENERATION_EXTENSION]
+        extensions = [GLIF_BUILD_EXTENSION, GLIF_CONSTRUCT_EXTENSION, GLIF_ACCUMULATE_EXTENSION, ELPI_GENERATION_EXTENSION]
         cmds = ['show version'] + ['extension ' + e for e in extensions] + ['server on ' + str(self.port)]
         args = ['java', '-jar', mmt_jar, '--keepalive', '--shell', ' ; '.join(cmds)]
         pipe = os.pipe()
@@ -204,6 +205,25 @@ class MMTInterface(object):
             response: Any = result.value
             if response['isSuccessful']:
                 return Result(True, response['result'], '\n'.join(response['errors']))
+            return Result(False, None, '\n'.join(response['errors']))
+        return Result(False, None, result.logs)
+
+    def populate(self, terms: list[str], archive: str, subdir: Optional[str], meta_theory: str,
+                 name: str = 'generated', mode: str = 'default') -> Result[dict[str, str]]:
+        if '/' not in meta_theory:
+            meta_theory = f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{meta_theory}'
+        result = self.server.post_request('glf-accumulate',
+                                          json={
+                                              'terms': terms,
+                                              'mode': mode,
+                                              'metatheory': meta_theory,
+                                              'theorypath': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{name}',
+                                              'version': 1,
+                                          })
+        if result.success:  # request was successful
+            response: Any = result.value
+            if response['isSuccessful']:
+                return Result(True, response, '\n'.join(response['errors']))
             return Result(False, None, '\n'.join(response['errors']))
         return Result(False, None, result.logs)
 
