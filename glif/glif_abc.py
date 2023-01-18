@@ -1,6 +1,9 @@
 """
     Provides abstract base classes (abc) to avoid circular dependencies,
     which are mostly caused by imports for type hints.
+
+    TODO: There are better ways to do this (use one of those instead)
+    It's actually really annoying to have an abstract class with a single implementation.
 """
 
 from abc import ABC, abstractmethod
