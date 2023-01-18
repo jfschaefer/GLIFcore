@@ -200,7 +200,7 @@ class Glif(glif_abc.GlifABC):
         if currentcommand.strip():
             results.append(self.execute_command(currentcommand))
         if not results:
-            return [Result(False, logs=f'No command given')]
+            return [Result(False, logs='No command given')]
         return results
 
     def execute_command(self, command: str) -> Result[items.Items]:
@@ -226,7 +226,7 @@ class Glif(glif_abc.GlifABC):
             rest = rest.strip()
 
         if not items:
-            return Result(False, logs=f'No command given')
+            return Result(False, logs='No command given')
 
         return Result(True, value=items)
 

@@ -69,12 +69,12 @@ def items_to_stdin(items: Items, with_ast: bool) -> str:
         expr = f'glif.mkItem {itemid} {item.original_id} '
         s = item.content.get(Repr.SENTENCE)
         if s is None:
-            expr += f'glif.none '
+            expr += 'glif.none '
         else:
             expr += f'(glif.some "{s}") '
         for e in [item.content.get(Repr.AST) if with_ast else None, item.content.get(Repr.LOGIC_ELPI)]:
             if e is None:
-                expr += f'glif.none '
+                expr += 'glif.none '
             else:
                 expr += f'(glif.some {e}) '
         expressions.append(expr.strip() + '.')

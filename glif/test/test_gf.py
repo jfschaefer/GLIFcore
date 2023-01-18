@@ -35,7 +35,7 @@ class TestShellIO(unittest.TestCase):
         for c in ["A", "Ä", "ᴬ", "𝔸"]:
             self.checkio(f'ps "{c}"', c)
         # combined
-        self.checkio(f'ps "AÄᴬ𝔸 end"', "AÄᴬ𝔸 end")
+        self.checkio('ps "AÄᴬ𝔸 end"', "AÄᴬ𝔸 end")
 
     def test_multiline(self):
         self.checkio('import resources/gf/MiniGrammarEng.gf', '')

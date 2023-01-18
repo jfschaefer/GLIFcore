@@ -93,7 +93,8 @@ class MMTStartupException(Exception):
 class MMTServer(object):
     def __init__(self, mmt_jar: str):
         self.port = utils.find_free_port()
-        extensions = [GLIF_BUILD_EXTENSION, GLIF_CONSTRUCT_EXTENSION, GLIF_ACCUMULATE_EXTENSION, ELPI_GENERATION_EXTENSION]
+        extensions = [GLIF_BUILD_EXTENSION, GLIF_CONSTRUCT_EXTENSION, GLIF_ACCUMULATE_EXTENSION,
+                      ELPI_GENERATION_EXTENSION]
         cmds = ['show version'] + ['extension ' + e for e in extensions] + ['server on ' + str(self.port)]
         args = ['java', '-jar', mmt_jar, '--keepalive', '--shell', ' ; '.join(cmds)]
         pipe = os.pipe()
@@ -128,7 +129,7 @@ class MMTServer(object):
                 raise MMTStartupException(f'MMT startup timed out after {MMT_STARTUP_TIMEOUT} seconds',
                                           self.mmtlogstart)
             else:
-                raise MMTStartupException(f'Failed to start MMT', self.mmtlogstart)
+                raise MMTStartupException('Failed to start MMT', self.mmtlogstart)
 
         self.mmtlogthread = threading.Thread(target=self.__update_mmt_logs)
         self.mmtlogthread.start()
@@ -192,14 +193,16 @@ class MMTInterface(object):
 
     def construct(self, ASTs: list[str], archive: str, subdir: Optional[str], view: str,
                   delta_expand: bool = False, simplify: bool = True) -> Result[dict[str, list[str]]]:
-        result = self.server.post_request('glf-construct',
-                                          json={
-                                              'semanticsView': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{view}',
-                                              'ASTs': ASTs,
-                                              'deltaExpansion': delta_expand,
-                                              'simplify': simplify,
-                                              'version': 2,
-                                          })
+        result = self.server.post_request(
+            'glf-construct',
+            json={
+                'semanticsView': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{view}',
+                'ASTs': ASTs,
+                'deltaExpansion': delta_expand,
+                'simplify': simplify,
+                'version': 2,
+            }
+        )
 
         if result.success:  # request was successful
             response: Any = result.value
@@ -212,14 +215,16 @@ class MMTInterface(object):
                  name: str = 'generated', mode: str = 'default') -> Result[dict[str, str]]:
         if '/' not in meta_theory:
             meta_theory = f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{meta_theory}'
-        result = self.server.post_request('glf-accumulate',
-                                          json={
-                                              'terms': terms,
-                                              'mode': mode,
-                                              'metatheory': meta_theory,
-                                              'theorypath': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{name}',
-                                              'version': 1,
-                                          })
+        result = self.server.post_request(
+            'glf-accumulate',
+            json={
+                'terms': terms,
+                'mode': mode,
+                'metatheory': meta_theory,
+                'theorypath': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{name}',
+                'version': 1,
+            }
+        )
         if result.success:  # request was successful
             response: Any = result.value
             if response['isSuccessful']:
@@ -229,14 +234,16 @@ class MMTInterface(object):
 
     def elpigen(self, mode: str, archive: str, subdir: Optional[str], theory: str,
                 meta: bool = False, includes: bool = True) -> Result[str]:
-        result = self.server.post_request('glif-elpigen',
-                                          json={
-                                              'theory': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{theory}',
-                                              'mode': mode,
-                                              'follow-meta': meta,
-                                              'follow-includes': includes,
-                                              'version': 2,
-                                          })
+        result = self.server.post_request(
+            'glif-elpigen',
+            json={
+                'theory': f'http://mathhub.info/{archive}{"/" + subdir if subdir else ""}/{theory}',
+                'mode': mode,
+                'follow-meta': meta,
+                'follow-includes': includes,
+                'version': 2,
+            }
+        )
         if result.success:  # request was successful
             response: Any = result.value
             if response['isSuccessful']:

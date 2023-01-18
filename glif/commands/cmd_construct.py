@@ -10,7 +10,7 @@ def construct_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainarg
     if view == '$DEFAULT':
         view = glif.get_defaultview()
     delta_expand = 'delta-expand' in keys
-    simplify = not 'no-simplify' in keys
+    simplify = 'no-simplify' not in keys
     if not view:
         return Items([]).with_errors(['No semantics construction view has been specified for the "construct" '
                                       'command and no default view is available.'])

@@ -31,7 +31,8 @@ def populate_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs
     assert r.value
 
     return Items([
-        Item(0).with_repr(Repr.DEFAULT, r.value['theorypresentation'].replace('\n\t\t: ', ' : ').replace('\n\t❙', ' ❙')),
+        Item(0).with_repr(Repr.DEFAULT,
+                          r.value['theorypresentation'].replace('\n\t\t: ', ' : ').replace('\n\t❙', ' ❙')),
     ]).with_errors(items.errors)
 
 

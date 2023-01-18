@@ -6,10 +6,12 @@ from glif.commands.items import Items
 from ..parsing import parse_basic_command, BasicCommand
 from ..utils import Result
 
+
 class CommandTypeABC(ABC):
     @abstractmethod
     def get_main_name(self) -> str:
         raise NotImplementedError()
+
     @abstractmethod
     def get_long_descr(self, glif: Glif) -> str:
         raise NotImplementedError()
@@ -19,6 +21,7 @@ class Command(object):
     """
         A command that may be executed or applied to items.
     """
+
     def __init__(self,
                  command_type: CommandTypeABC,
                  execute_fn: Optional[Callable[[Glif], Items]] = None,
@@ -40,7 +43,8 @@ class Command(object):
     def apply(self, glif: Glif, items: Items) -> Items:
         """ If input is provided (`items`) """
         if self.itemsFromArgs and self.itemsFromArgs.items:
-            return self.itemsFromArgs.with_errors([f'No input was expected for command {self.command_type.get_main_name()}'])
+            return self.itemsFromArgs.with_errors(
+                [f'No input was expected for command {self.command_type.get_main_name()}'])
         return self._internal_apply(glif, items)
 
     def _internal_apply(self, glif: Glif, items: Items) -> Items:

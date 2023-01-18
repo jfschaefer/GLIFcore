@@ -34,7 +34,7 @@ def status_helper(glif: Any, keyval: dict[str, str], keys: set[str], mainargs: l
     if glif._mmt:
         result.append(f'MMT is running on port {glif._mmt.server.port}')
     else:
-        result.append(f'MMT is not running')
+        result.append('MMT is not running')
     result.append('Logs from initialization')
     result += glif._findMMTlogs
     if glif._mmtFailedStartupMessage:
@@ -58,7 +58,9 @@ def status_helper(glif: Any, keyval: dict[str, str], keys: set[str], mainargs: l
         result.append('ELPI location: ' + elpipath)
         try:
             result.append('ELPI version: ' + subprocess.check_output([elpipath, '-version'], text=True).strip())
-        except:
+        except FileNotFoundError:
+            result.append('"elpi -version" failed (file not found)')
+        except subprocess.CalledProcessError:
             result.append('"elpi -version" failed')
 
     return Items.from_vals(Repr.DEFAULT, result)
