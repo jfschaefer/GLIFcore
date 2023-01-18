@@ -13,6 +13,8 @@ class TestBasicParsing(unittest.TestCase):
                 print(pr.logs)
             self.assertTrue(pr.success)
             expected = parsing.CommandArgument(key=k, value=v)
+            self.assertIsNotNone(pr.value)
+            assert pr.value is not None   # make mypy happy
             self.assertEqual(pr.value[0], expected)
 
         test('-lang=Eng "test"', 'lang', 'Eng')

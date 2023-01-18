@@ -70,6 +70,7 @@ class TestGlif(unittest.TestCase):
         r = self.glif.execute_command(
             'parse -cat=S "someone loves someone and someone loves everyone and everyone loves someone"')
         self.assertTrue(r.success)
+        assert r.value is not None
         self.assertEqual(len(r.value.items), 2)
         strs = [str(item) for item in r.value.items]
         self.assertIn('and (s someone (love someone)) (and (s someone (love everyone)) (s everyone (love someone)))',
@@ -122,7 +123,7 @@ class TestGlif(unittest.TestCase):
         # CONCRETE SYNTAX
         result = self.glif.stub_gen('concrete MiniGrammarIt')
         self.assertTrue(result.success)
-        assert result.success
+        assert result.value is not None
         self.assertIn('concrete MiniGrammarIt of MiniGrammar = {', result.value)
         self.assertIn('-- love : NP -> VP', result.value)
         self.assertIn('love _ = _ ;', result.value)

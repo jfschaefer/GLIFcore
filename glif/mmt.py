@@ -145,6 +145,7 @@ class MMTServer(object):
 
     def do_shutdown(self):
         """ Shuts down the MMT server and the MMT shell """
+        assert self.mmt.stdin is not None
         self.mmt.stdin.write('server off\nexit\n')
         self.mmt.stdin.close()
         self.mmt.kill()

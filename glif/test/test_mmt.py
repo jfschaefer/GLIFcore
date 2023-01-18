@@ -14,19 +14,23 @@ TEST_ARCHIVE = 'tmpGLIF/test'
 class TestMMT(unittest.TestCase):
     mh: mmt.MathHub
     mmt: mmt.MMTInterface
+    testarchivedir: str
 
     @classmethod
     def setUpClass(cls):
         mmtjar = utils.find_mmt_jar()
         assert mmtjar.success
+        assert mmtjar.value is not None
         mhdir = utils.find_mathhub_dir(mmtjar.value)
         assert mhdir.success
+        assert mhdir.value is not None
         tmp = os.path.join(mhdir.value, TEST_ARCHIVE.split('/')[0])
         if os.path.isdir(tmp):
             shutil.rmtree(tmp)
         cls.mh = mmt.MathHub(mhdir.value)
         r = cls.mh.make_archive(TEST_ARCHIVE)
         assert r.success
+        assert r.value is not None
         cls.testarchivedir = r.value
         cls.mmt = mmt.MMTInterface(mmtjar.value, cls.mh)
 
@@ -70,6 +74,7 @@ class TestMMT(unittest.TestCase):
         result = self.mmt.construct(['s everyone (love someone)', 's someone (love someone)'],
                                     TEST_ARCHIVE, 'mini', 'MiniGrammarSemantics', delta_expand=False)
         self.assertTrue(result.success)
+        assert result.value is not None
         self.assertEqual(len(result.value['mmt']), 2)
         self.assertEqual(len(result.value['elpi']), 2)
         self.assertEqual(result.value['mmt'][0], '∀[x]∃(love x)')
@@ -79,6 +84,7 @@ class TestMMT(unittest.TestCase):
         result = self.mmt.construct(['s everyone (love someone)'],
                                     TEST_ARCHIVE, 'mini', 'MiniGrammarSemantics', delta_expand=True)
         self.assertTrue(result.success)
+        assert result.value is not None
         self.assertEqual(result.value['mmt'][0], '∀[x]¬∀[x/r]¬(love x x/r)')
 
     def test_elpigen_types(self):
@@ -87,6 +93,7 @@ class TestMMT(unittest.TestCase):
                           'FOL.mmt')
         result = self.mmt.elpigen('types', TEST_ARCHIVE, 'mini', 'FOL')
         self.assertTrue(result.success)
+        assert result.value is not None
         self.assertTrue('type forall (ind -> prop) -> prop.' in result.value)
 
 

@@ -8,7 +8,7 @@ COMMAND_SEPARATOR = "COMMAND_SEPARATOR===??!<>239'_"
 
 
 class GFShellRaw(object):
-    def __init__(self, gf_path: str, cwd: str = None, args: Optional[list[str]] = None):
+    def __init__(self, gf_path: str, cwd: Optional[str] = None, args: Optional[list[str]] = None):
         if args is None:
             args = []
         pipe = os.pipe()

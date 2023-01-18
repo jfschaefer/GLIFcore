@@ -34,10 +34,11 @@ class GfCommandType(CommandType):
             else:
                 output = gfshell.value.handle_command(cmd.gf_format(None))
             errs: list[str] = []
+            vals: list[str]
             if self.outrepr == Repr.GRAPH_DOT:
                 vals = [output]
             else:
-                vals: list[str] = []
+                vals = []
                 for line in output.splitlines():
                     line = line.strip()
                     if self.error_regex and self.error_regex.match(line):

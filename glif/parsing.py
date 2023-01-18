@@ -119,7 +119,7 @@ def parse_until_space(s: str) -> tuple[str, str]:
 
 def parse_identifier(s: str, canbenum: bool = False, allow_minus: bool = False) -> tuple[str, str]:
     assert s
-    assert s[0].isidentifier() or (canbenum and s[0].isalnum) or s[0] == '?'  # ? for user-defined macros
+    assert s[0].isidentifier() or (canbenum and s[0].isalnum()) or s[0] == '?'  # ? for user-defined macros
     identifier = s[0]
     i = 1
     while i < len(s):
