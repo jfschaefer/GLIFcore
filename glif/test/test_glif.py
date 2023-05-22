@@ -15,6 +15,8 @@ class TestGlif(unittest.TestCase):
         assert cls.glif.mh
 
         # copy files
+        if TEST_ARCHIVE not in cls.glif.mh.archives:
+            cls.glif.mh.make_archive(TEST_ARCHIVE)
         cls.glif.mh.make_subdir(TEST_ARCHIVE, 'mini')
         for name in ['MiniGrammar.gf', 'MiniGrammarEng.gf', 'FOL.mmt', 'MiniGrammarDDT.mmt',
                      'MiniGrammarSemantics.mmt']:
@@ -44,6 +46,7 @@ class TestGlif(unittest.TestCase):
         self.command_test('i MiniGrammarSemantics.mmt')
         self.command_test('parse -cat=S "someone loves someone"', output='s someone (love someone)')
         self.command_test('generate_random')  # tests GF execute command
+        self.maxDiff = None
         self.command_test('parse -cat=S "someone loves someone" | construct -view=MiniGrammarSemantics',
                           output='∃[x]∃(love x)')
 

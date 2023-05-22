@@ -95,7 +95,7 @@ class MMTServer(object):
         self.port = utils.find_free_port()
         extensions = [GLIF_BUILD_EXTENSION,
                 GLIF_CONSTRUCT_EXTENSION,
-                # GLIF_ACCUMULATE_EXTENSION, # TODO not working right now
+                # GLIF_ACCUMULATE_EXTENSION,    # Only exists in experimental MMT build
                 ELPI_GENERATION_EXTENSION,
         ]
         cmds = ['show version'] + ['extension ' + e for e in extensions] + ['server on ' + str(self.port)]
