@@ -260,6 +260,8 @@ def identify_file(s: str) -> Result[tuple[str, str, str]]:  # (type, name, conte
             i = _skipto(s, i, '*/')
         elif _nextup(s, i, 'namespace'):
             i = _skipto(s, i, '❚')
+        elif _nextup(s, i, '#'):
+            i = _skipto(s, i, '\n')
         else:
             for (k, t) in [('theory', 'mmt-theory'), ('view', 'mmt-view'),
                            ('abstract', 'gf-abstract'), ('concrete', 'gf-concrete'), ('resource', 'gf-resource'),
@@ -267,7 +269,7 @@ def identify_file(s: str) -> Result[tuple[str, str, str]]:  # (type, name, conte
                            ('incomplete concrete', 'gf-incomplete concrete'),
                            ('mmt:', 'mmt'), ('elpi:', 'elpi'), ('elpi-notc:', 'elpi-notc'), ('gf:', 'gf'),
                            ('MMT:', 'mmt'), ('ELPI:', 'elpi'), ('ELPI-NOTC:', 'elpi-notc'), ('GF:', 'gf'),
-                           ('kind', 'elpi'), ('type', 'elpi')]:
+                           ('kind', 'elpi'), ('type', 'elpi'), ('Lexicon', 'lex')]:
                 n = _nextup(s, i, k)
                 if n:
                     s2 = s[n:].strip()

@@ -93,8 +93,11 @@ class MMTStartupException(Exception):
 class MMTServer(object):
     def __init__(self, mmt_jar: str):
         self.port = utils.find_free_port()
-        extensions = [GLIF_BUILD_EXTENSION, GLIF_CONSTRUCT_EXTENSION, GLIF_ACCUMULATE_EXTENSION,
-                      ELPI_GENERATION_EXTENSION]
+        extensions = [GLIF_BUILD_EXTENSION,
+                GLIF_CONSTRUCT_EXTENSION,
+                # GLIF_ACCUMULATE_EXTENSION, # TODO not working right now
+                ELPI_GENERATION_EXTENSION,
+        ]
         cmds = ['show version'] + ['extension ' + e for e in extensions] + ['server on ' + str(self.port)]
         args = ['java', '-jar', mmt_jar, '--keepalive', '--shell', ' ; '.join(cmds)]
         pipe = os.pipe()

@@ -7,6 +7,7 @@ import glif.commands.command as cmd
 from glif.commands.gf_commands import GF_COMMAND_TYPES
 from glif.commands.glif_command_types import GLIF_COMMAND_TYPES
 import os
+from .lex import LexiconParser
 
 from .utils import Result
 
@@ -151,7 +152,7 @@ class Glif(glif_abc.GlifABC):
             assert file_r.value
             type_ = file_r.value[0]
             name = file_r.value[1]
-            ending = type_.split('-')[0]  # should be one in 'mmt', 'gf', 'elpi'
+            ending = type_.split('-')[0]  # should be one in 'mmt', 'gf', 'elpi', 'lex'
             archiveresult = self.get_archive_subdir()
             if ending == 'mmt' and not archiveresult.success:
                 return [Result(False, None, archiveresult.logs)]
@@ -305,6 +306,35 @@ class Glif(glif_abc.GlifABC):
         r: Result[None] = Result(True)
         r.logs = f'{filename} is the new default file for ELPI commands'
         return r
+
+    def import_lex_file(self, filename: str) -> Result[None]:
+        #TODO
+        mmt_result = self.get_mmt()
+        if not mmt_result.success:
+            return Result(False, logs=mmt_result.logs)
+        mmt = mmt_result.value
+
+        archive_result = self.get_archive_subdir()
+        if not archive_result.success:
+            return Result(False, logs=archive_result.logs)
+        archive, subdir = archive_result.value
+
+        lexicon_path = os.path.join(self._cwd, filename)
+
+        # creating GF and MMT files out of the lex file
+        lex_parser = LexiconParser(lexicon_path, archive=archive, subdir=subdir, cwd=self._cwd)
+        lex_parser.create_all()
+
+        # importing the newly created files
+        import_all_command : str = ""
+        for ending in [".gf", "LincatCon.gf", "Eng.gf", "Semantics.mmt", "SemConstr.mmt"]:
+            import_all_command += f'import "{filename[:-4]}{ending}"\n'
+
+        results = self.execute_commands(import_all_command)
+
+        return Result(True)
+        # raise NotImplementedError()
+
 
     def get_gf_shell(self) -> Result[gf.GFShellRaw]:
         if not self._gfshell and self._gfshellFailedLogs is None:
