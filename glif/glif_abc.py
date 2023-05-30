@@ -71,6 +71,10 @@ class GlifABC(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def import_lex_file(self, filename: str) -> Result[None]:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_gf_shell(self) -> Result[gf.GFShellRaw]:
         raise NotImplementedError()
 

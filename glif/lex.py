@@ -3,6 +3,7 @@
 """
 
 import os.path
+import shlex
 
 from . import parsing
 from .utils import Result
@@ -27,14 +28,31 @@ class Type(BaseModel):
     single_type: str
 
 
+class Type_Definition(BaseModel):
+    """
+    Type Definitionen mit MMT Form + Sprache und GF Sonderformen
+    gf_forms -> tuple von (form, lang)
+    """
+
+    name: Type
+    mmt_form: str
+    gf_forms: list[tuple[str, str]] = []
+
+
 class Definition(BaseModel):
     """
     Die Definition eines Objektes.
+    name: ist der Name des zu definierten Objekts und gleichzeitig die
+        Englischen Definition
+    type_: ist der jeweilige komplexe Typ der Definition.
+    other_names: die Bedeutung des Objektes in anderen Sprachen, markiert
+        mit der jeweiligen Sprache
     """
 
     name: str
     type_: list[Type]
-    lang: str = "Eng"
+    other_names: list[tuple[str, str]] = []  # tuples of (name, lang)
+    to_add: str = ""
 
 
 class Format(Enum):
@@ -50,15 +68,20 @@ class Format(Enum):
 class Importer(BaseModel):
     """
     Ein konkreter Import. Hierfür wird der Link mit dem
-    entsprechenden Format abgespeichert
+    entsprechenden Format abgespeichert.
+    Beim Format GF_RESOURCE wird zudem die Sprache angegeben.
     """
 
     link: str
     format_: Format
+    lang: str = "Eng"
+
 
 class LexiconParser(object):
     # definition_list: Paare von (name, typ), name: str und typ: list(str)
     # Hier befinden sich die eigentlichen Definitionen der Objekte.
+    # Der Default aller Sprachen/ füllt andere (als Eng) Sprachen auf falls
+    # keine definition in der jeweiligen Sprache existiert
     definition_list: list[Definition] = []
 
     # Liste mit jeglichen (auch komplexeren) vorhanden Typ-Definitionen
@@ -66,7 +89,7 @@ class LexiconParser(object):
     # die mit ⟶ von kleineren Typen aufgebaut ist.
     # Beispiel: VP : \iota ⟶ o
     # (Liste statt Dict, weil Type nicht gehasht werden kann)
-    type_def_list: list[tuple[Type, str]] = []
+    type_def_list: list[Type_Definition] = []
 
     # Dateien, die in gf oder mmt importiert werden müssen.
     import_files: list[Importer] = []
@@ -77,6 +100,7 @@ class LexiconParser(object):
     lexicon_name: str
     lexicon_path: str
     cwd: str = DEFAULT_PATH
+    languages: list[str] = []
 
     def __init__(
         self,
@@ -98,6 +122,7 @@ class LexiconParser(object):
         self.logs = []
         self.lexicon_path = lexicon_path
         self.cwd = cwd
+        self.languages = ["Eng"]
 
         code: str = ""
         with open(lexicon_path, "r", encoding="UTF-8") as flex:
@@ -127,42 +152,142 @@ class LexiconParser(object):
                     result = self.include_handle(line)
                     if not result.success:
                         raise RuntimeError(result.logs)
-                else:
-                    name_type, type_name = line.split(":")
-                    name_type = name_type.strip()
-                    type_name = type_name.replace(" ", "")
+                else:  # TODO das hier auslagern
+                    line_split = line.split(":", 2)
+                    if len(line_split) < 2:
+                        raise RuntimeError(f"no seperator ':' in {line}\n")
+                    if len(line_split) > 3:
+                        raise RuntimeError(f"to many seperator ':' in {line}\n")
+                    name_type = line_split[0].strip()
+                    type_name = line_split[1].replace(" ","")
+                    rest = ""
+                    if len(line_split) == 3:
+                        rest = line_split[2]
+                    # options
+                    current_option = ""
+                    lang = ""
+                    gf_forms = []
+                    for option in shlex.split(rest):
+                        if current_option == "":
+                            current_option = option
+                        elif current_option == "-l":
+                            if lang == "":
+                                lang = option
+                            else:
+                                gf_forms.append((option, lang))
+                                lang = ""
+                                current_option = ""
+                        else:
+                            raise RuntimeError("unknown flag or false flag usage")
+
+                    for type_defintion in self.type_def_list:
+                        if name_type == type_defintion.name.single_type:
+                            raise RuntimeError(f"{name_type} already defined")
                     type_ = Type(single_type=name_type)
-                    # TODO überprüfen, dass ein Typ nicht schon vorhanden ist.
-                    self.type_def_list.append((type_, type_name))
+                    type_defintion = Type_Definition(name=type_, mmt_form=type_name, gf_forms=gf_forms)
+                    self.type_def_list.append(type_defintion)
             else:
                 name, full_types = line.split(":")
-                line_type = full_types.replace(" ", "").split("->")
+                name = name.strip()
+                line_type = full_types.split("->")
                 line_type_list: list[Type] = []
-                for type_str in line_type:
-                    line_type_list.append(Type(single_type=type_str))
-                self.definition_list.append(
-                    Definition(name=name.strip(), type_=line_type_list)
-                )
+                for type_str in line_type[:-1]:
+                    line_type_list.append(Type(single_type=type_str.strip()))
+
+                # der letzte Typ + mögliche optionen
+                type_and_ending = shlex.split(line_type[-1])
+                line_type_list.append(Type(single_type=type_and_ending[0].strip()))
+
+                options = type_and_ending[1:]
+                other_names: list[tuple[str, str]] = []
+                lang = ""
+                special_case = ""
+                current_option = ""  # TODO auslagern in eine eigene Methode
+                for option in options:
+                    if current_option == "":
+                        current_option = option
+                    elif current_option == "-l":  # l for language
+                        if lang == "":
+                            lang = option
+                            result = self.lang_handle(lang, name)
+                            if not result.success:
+                                raise RuntimeError(result.logs)
+                        else:
+                            # Eng will always be added at the end (as default)
+                            if lang != "Eng":
+                                other_names.append((option, lang))
+                            lang = ""
+                            current_option = ""
+                    elif current_option == "-sc":  # sc for special_case
+                        if special_case != "":
+                            raise RuntimeError(
+                                f"special case of {name}" + "already set"
+                            )
+                        special_case = option
+                        current_option = ""
+                    else:
+                        raise RuntimeError("unknown flag or false flag usage")
+                if current_option != "":
+                    raise RuntimeError(f"{current_option} flag set but not used")
+
+                already_in_list = False
+                for defi in self.definition_list:
+                    if defi.name == name:
+                        already_in_list = True
+                        if defi.type_ != line_type_list:
+                            raise RuntimeError(
+                                f"{defi.name} already defined"
+                                + " with a different type"
+                            )
+                        defi.other_names += other_names
+                if not already_in_list:
+                    self.definition_list.append(
+                        Definition(
+                            name=name,
+                            type_=line_type_list,
+                            other_names=other_names,
+                            to_add=special_case,
+                        )
+                    )
 
     def include_handle(self, line: str) -> Result[str]:
         """
         Überprüft die include Datei um das passende Format zu erkennen
         Der Pfad ist immer in Abhängigkeit von der lex Datei anzugeben.
         """
-        import_file_name = line.split()[1]
+        line_array = shlex.split(line)
+        import_file_name = line_array[1]
         ending = import_file_name.split(".")[-1]
         lexicon_dir_path = os.path.dirname(self.lexicon_path)
         import_file_path = os.path.join(lexicon_dir_path, import_file_name)
+
+        # Sprachen hinzufügen
+        langs: list[str] = []
+        current_option = ""
+        for option in line_array[2:]:
+            if current_option == "":
+                current_option = option
+            elif current_option == "-l":
+                current_option = ""
+                langs.append(option)
+
+        if langs == []:
+            langs.append("Eng")
+
+        # den Import in die Liste hinzufügen
         if ending == "gf":
             # Überprüfung ob es sich bei der gf Datei um ein resource handelt
             with open(import_file_path, "r") as import_file:
                 file_r = parsing.identify_file(import_file.read())
                 if file_r.success:
                     if file_r.value[0] == "gf-resource":
-                        importer = Importer(
-                            link=import_file_path, format_=Format.GF_RESOURCE
-                        )
-                        self.import_files.append(importer)
+                        for lang in langs:
+                            importer = Importer(
+                                link=import_file_path,
+                                format_=Format.GF_RESOURCE,
+                                lang=lang,
+                            )
+                            self.import_files.append(importer)
                     else:
                         return Result(
                             False,
@@ -193,12 +318,27 @@ class LexiconParser(object):
                         )
         return Result(True, "\n")
 
-    def create_gf_abstract(self) -> None:
+    def lang_handle(self, lang: str, name: str) -> Result[None]:
+        for defi in self.definition_list:
+            if defi.name == name.strip():
+                for _, language in defi.other_names:
+                    if lang == language:
+                        return Result(
+                            False,
+                            logs=f"{name} already definied"
+                            + f" in the language {lang}",
+                        )
+        if lang not in self.languages:
+            self.languages.append(lang)
+        return Result(True)
+
+    def create_gf_abstract(self) -> Result[str]:
         """
         Erstellst die Datei GF abstract mit dem {self.lexicon_name}.gf als Namen
         """
+        file_ending = ".gf"
         auto_comm_gf = "-- This is auto-generated. Pls do not modify.\n"
-        write_name: str = os.path.join(self.cwd, f"{self.lexicon_name}.gf")
+        write_name: str = os.path.join(self.cwd, self.lexicon_name + file_ending)
         if self.file_check(write_name, auto_comm_gf):
             with open(write_name, "w", encoding="UTF-8") as gfabs:
                 gfabs.write(auto_comm_gf)
@@ -206,8 +346,8 @@ class LexiconParser(object):
 
                 # die vorhandenen Typen
                 gfabs.write("\tcat\n")
-                for typ, _ in self.type_def_list:
-                    gfabs.write(f"\t\t{typ.single_type};\n")
+                for type_defintion in self.type_def_list:
+                    gfabs.write(f"\t\t{type_defintion.name.single_type};\n")
 
                 gfabs.write("\tfun\n")
                 for definition in self.definition_list:
@@ -219,34 +359,17 @@ class LexiconParser(object):
                     gfabs.write(f"{final_type};\n")
 
                 gfabs.write("}")
+            return Result(True, file_ending)
+        return Result(False, None, f"{write_name} already exists")
 
-    def create_gf_lincat_concrete(self) -> None:
+    def create_gf_concrete(self, language: str) -> Result[str]:
         """
-        Erstellt die GF Lincat Concrete Datei mit dem Namen
-        {self.lexicon_name}LincatCon.gf
-        """
-
-        auto_comm_lincatcon = "-- This is auto-generated. Pls do not modify.\n"
-        write_name: str = os.path.join(self.cwd, f"{self.lexicon_name}LincatCon.gf")
-        if self.file_check(write_name, auto_comm_lincatcon):
-            with open(write_name, "w", encoding="UTF-8") as gflincatcon:
-                gflincatcon.write(auto_comm_lincatcon)
-                gflincatcon.write(
-                    f"concrete {self.lexicon_name}LincatCon of {self.lexicon_name} = "
-                    + "{\n"
-                )
-                gflincatcon.write("\tlincat\n")
-                for typ, _ in self.type_def_list:
-                    gflincatcon.write(f"\t\t{typ.single_type} = Str;\n")
-                gflincatcon.write("}")
-
-    def create_gf_concrete(self) -> None:
-        """
-        Erstellt die GF concrete Datei mit {self.lexicon_name}Eng.gf als Namen
+        Erstellt die GF concrete Datei mit {self.lexicon_name}{language}.gf als Namen
         """
         # default englishFile
+        file_ending = f"{language}.gf"
         auto_comm_eng = "-- This is auto-generated. Pls do not modify.\n"
-        write_name: str = os.path.join(self.cwd, f"{self.lexicon_name}Eng.gf")
+        write_name: str = os.path.join(self.cwd, self.lexicon_name + file_ending)
         if self.file_check(write_name, auto_comm_eng):
             with open(write_name, "w", encoding="UTF-8") as gfcon:
                 gfcon.write(auto_comm_eng)
@@ -254,47 +377,74 @@ class LexiconParser(object):
                 open_needed: bool = False
                 for importer in self.import_files:
                     if importer.format_ == Format.GF_RESOURCE:
-                        open_needed = True
-                        break
+                        if importer.lang == language:
+                            open_needed = True
+                            break
 
                 if open_needed:
                     opened_resources = ""
                     for importer in self.import_files:
                         if importer.format_ == Format.GF_RESOURCE:
-                            import_name = os.path.basename(importer.link[:-3])
-                            opened_resources += import_name + ", "
+                            if importer.lang == language:
+                                import_name = os.path.basename(importer.link[:-3])
+                                opened_resources += import_name + ", "
                     opened_resources = opened_resources[:-2]
                     gfcon.write(
-                        f"concrete {self.lexicon_name}Eng of {self.lexicon_name} "
-                        + f"= {self.lexicon_name}LincatCon ** "
+                        f"concrete {self.lexicon_name}{language}"
+                        + f" of {self.lexicon_name} ="
                         + f"open {opened_resources} in "
                         + "{\n"
                     )
                 else:
                     gfcon.write(
-                        f"concrete {self.lexicon_name}Eng of {self.lexicon_name} "
-                        + f"= {self.lexicon_name}LincatCon ** "
+                        f"concrete {self.lexicon_name}{language}"
+                        + f" of {self.lexicon_name} ="
                         + "{\n"
                     )
+
+                # TODO anpassen, sodass hier sonderfälle und Sprachen
+                # akzeptiert werden.
+                # default Fall: Str
+                gfcon.write("\tlincat\n")
+                for type_defintion in self.type_def_list:
+                    written: bool = False
+                    for form, lang in type_defintion.gf_forms:
+                        if lang == language:
+                            gfcon.write(f"\t\t{type_defintion.name.single_type} = {form};\n")
+                            written = True
+                            break
+                    if not written:  # default
+                        gfcon.write(f"\t\t{type_defintion.name.single_type} = Str;\n")
 
                 gfcon.write("\tlin\n")
                 for definition in self.definition_list:
                     if len(definition.type_) == 1:
+                        input_name = f'"{definition.name}"'
+                        if language == "Eng" and definition.to_add != "":
+                            input_name += " " + definition.to_add
+                        else:
+                            for other_name, lang in definition.other_names:
+                                if lang == language:
+                                    input_name = other_name
+                                    break
                         # nur Wörter der Form "Peter : Name"
                         gfcon.write(
                             f"\t\t{definition.name} = "
                             + f"mk{definition.type_[0].single_type} "
-                            + f'"{definition.name}";\n'
+                            + f'{input_name};\n'
                         )
 
                 gfcon.write("}")
+            return Result(True, file_ending)
+        return Result(False, None, f"{write_name} already exists")
 
-    def create_mmt_semantics(self) -> None:
+    def create_mmt_semantics(self) -> Result[str]:
         """
         Erstellt die MMT Datei mit den Semantics, die später im view verwendet wird.
         """
+        file_ending = "Semantics.mmt"
         auto_comm_sem = "// This is auto-generated. Pls do not modify.❚\n"
-        write_name: str = os.path.join(self.cwd, f"{self.lexicon_name}Semantics.mmt")
+        write_name: str = os.path.join(self.cwd, self.lexicon_name + file_ending)
         if self.file_check(write_name, auto_comm_sem):
             with open(write_name, "w", encoding="UTF-8") as mmtsem:
                 mmtsem.write(auto_comm_sem)
@@ -311,21 +461,24 @@ class LexiconParser(object):
 
                 for definition in self.definition_list:
                     mmt_definition_type: str = ""
-                    for type_, type_name in self.type_def_list:
-                        if type_ == definition.type_[0]:
-                            mmt_definition_type = type_name
+                    for type_defintion in self.type_def_list:
+                        if type_defintion.name == definition.type_[0]:
+                            mmt_definition_type = type_defintion.mmt_form
                     mmtsem.write(
                         f"\t{definition.name} :" + f" {mmt_definition_type} ❙\n"
                     )
                 mmtsem.write("❚")
+            return Result(True, file_ending)
+        return Result(False, None, f"{write_name} already exists")
 
-    def create_mmt_sem_constr(self) -> None:
+    def create_mmt_sem_constr(self) -> Result[str]:
         """
         Erstellt die MMT Datei, die den view von der erstellten GF abstract
         zur MMT Semantics beinhaltet.
         """
+        file_ending = "SemConstr.mmt"
         auto_comm_semcon = "// This is auto-generated. Pls do not modify.❚\n"
-        write_name: str = os.path.join(self.cwd, f"{self.lexicon_name}SemConstr.mmt")
+        write_name: str = os.path.join(self.cwd, self.lexicon_name + file_ending)
         if self.file_check(write_name, auto_comm_semcon):
             with open(write_name, "w", encoding="UTF-8") as mmtsemcon:
                 mmtsemcon.write(auto_comm_semcon)
@@ -345,14 +498,19 @@ class LexiconParser(object):
                     if importer.format_ == Format.MMT_VIEW:
                         mmtsemcon.write(f"\tinclude ?{importer.link[:-4]} ❙\n")
 
-                for type_name, type_ in self.type_def_list:
-                    mmtsemcon.write(f"\t{type_name.single_type} = {type_} ❙\n")
+                for type_defintion in self.type_def_list:
+                    mmtsemcon.write(f"\t{type_defintion.name.single_type} ="
+                            + f" {type_defintion.mmt_form} ❙\n"
+                            )
+                    pass
 
                 for definition in self.definition_list:
                     if len(definition.type_) == 1:
                         mmtsemcon.write(f"\t{definition.name} = {definition.name} ❙\n")
 
                 mmtsemcon.write("❚")
+            return Result(True, file_ending)
+        return Result(False, None, f"{write_name} already exists")
 
     def file_check(self, filename: str, auto_gen_text: str) -> bool:
         """
@@ -365,23 +523,73 @@ class LexiconParser(object):
             with open(file_path, "r", encoding="UTF-8") as readfile:
                 if readfile.readline() == auto_gen_text:
                     return True
-                print("{filename} already exists and will not be overwritten")
                 return False
-
         return True
 
     def get_lexicon_name(self) -> str:
         return self.lexicon_name
 
-    def create_gf(self) -> None:
-        self.create_gf_abstract()
-        self.create_gf_lincat_concrete()
-        self.create_gf_concrete()
+    def create_gf(self) -> Result[list[str]]:
+        logs: list[str] = []
+        success: bool = True
+        file_names: list[str] = []
+        result = self.create_gf_abstract()
+        if result.success:
+            file_names.append(result.value)
+        else:
+            logs.append(result.logs)
+            success = False
 
-    def create_mmt(self) -> None:
-        self.create_mmt_semantics()
-        self.create_mmt_sem_constr()
+        for lang in self.languages:
+            result = self.create_gf_concrete(lang)
+            if result.success:
+                file_names.append(result.value)
+            else:
+                logs.append(result.logs)
+                success = False
 
-    def create_all(self) -> None:
-        self.create_gf()
-        self.create_mmt()
+        if success:
+            return Result(True, file_names, "\n".join(logs))
+        return Result(False, file_names, "\n".join(logs))
+
+    def create_mmt(self) -> Result[list[str]]:
+        logs: list[str] = []
+        success: bool = True
+        file_names: list[str] = []
+        result = self.create_mmt_semantics()
+        if result.success:
+            file_names.append(result.value)
+        else:
+            logs.append(result.logs)
+            success = False
+
+        result = self.create_mmt_sem_constr()
+        if result.success:
+            file_names.append(result.value)
+        else:
+            logs.append(result.logs)
+            success = False
+
+        if success:
+            return Result(True, file_names, "\n".join(logs))
+        return Result(False, file_names, "\n".join(logs))
+
+    def create_all(self) -> Result[str]:
+        logs: list[str] = []
+        success: bool = True
+        file_names: list[str] = []
+        result = self.create_gf()
+        file_names += result.value
+        logs.append(result.logs)
+        if not result.success:
+            success = False
+
+        result = self.create_mmt()
+        file_names += result.value
+        logs.append(result.logs)
+        if not result.success:
+            success = False
+
+        if success:
+            return Result(True, file_names, "\n".join(logs))
+        return Result(False, file_names, "\n".join(logs))

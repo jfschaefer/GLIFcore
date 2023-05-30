@@ -308,7 +308,6 @@ class Glif(glif_abc.GlifABC):
         return r
 
     def import_lex_file(self, filename: str) -> Result[None]:
-        #TODO
         mmt_result = self.get_mmt()
         if not mmt_result.success:
             return Result(False, logs=mmt_result.logs)
@@ -323,11 +322,15 @@ class Glif(glif_abc.GlifABC):
 
         # creating GF and MMT files out of the lex file
         lex_parser = LexiconParser(lexicon_path, archive=archive, subdir=subdir, cwd=self._cwd)
-        lex_parser.create_all()
+        result_create = lex_parser.create_all()
+        if not result_create.success:
+            print("Some files are not been created")
+
+        created_files = result_create.value
 
         # importing the newly created files
         import_all_command : str = ""
-        for ending in [".gf", "LincatCon.gf", "Eng.gf", "Semantics.mmt", "SemConstr.mmt"]:
+        for ending in created_files:
             import_all_command += f'import "{filename[:-4]}{ending}"\n'
 
         results = self.execute_commands(import_all_command)
