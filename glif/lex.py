@@ -18,6 +18,8 @@ DEFAULT_ARCHIVE = "tmpGLIF/default/test_build"
 KOMMENTAR_ZEICHEN = "#"
 DEFAULT_PATH = "."
 # TODO Path in die Eingabe vohin die erstellten Dateien kommen sollen.
+POSSIBLE_FLAGS_WORD = ["-l", "-add"]
+POSSIBLE_FLAGS_TYPE = ["-l", "-constr"]
 
 
 class Type(BaseModel):
@@ -37,6 +39,7 @@ class Type_Definition(BaseModel):
     name: Type
     mmt_form: str
     gf_forms: list[tuple[str, str]] = []
+    constructor: list[tuple[str, str]] = []
 
 
 class Definition(BaseModel):
@@ -60,6 +63,7 @@ class Format(Enum):
     mögliche Import-Formate
     """
 
+    GF_ABSTRACT = auto()
     GF_RESOURCE = auto()
     MMT_TYPE = auto()
     MMT_VIEW = auto()
@@ -101,6 +105,7 @@ class LexiconParser(object):
     lexicon_path: str
     cwd: str = DEFAULT_PATH
     languages: list[str] = []
+    create_cat: bool
 
     def __init__(
         self,
@@ -123,6 +128,7 @@ class LexiconParser(object):
         self.lexicon_path = lexicon_path
         self.cwd = cwd
         self.languages = ["Eng"]
+        self.create_cat = True
 
         code: str = ""
         with open(lexicon_path, "r", encoding="UTF-8") as flex:
@@ -156,35 +162,64 @@ class LexiconParser(object):
                     line_split = line.split(":", 2)
                     if len(line_split) < 2:
                         raise RuntimeError(f"no seperator ':' in {line}\n")
-                    if len(line_split) > 3:
-                        raise RuntimeError(f"to many seperator ':' in {line}\n")
                     name_type = line_split[0].strip()
-                    type_name = line_split[1].replace(" ","")
+                    type_name = line_split[1].replace(" ", "")
                     rest = ""
                     if len(line_split) == 3:
                         rest = line_split[2]
                     # options
                     current_option = ""
                     lang = ""
+                    long_option = ""
                     gf_forms = []
-                    for option in shlex.split(rest):
+                    constructor = []
+                    for option in rest.split():
                         if current_option == "":
                             current_option = option
                         elif current_option == "-l":
                             if lang == "":
                                 lang = option
-                            else:
-                                gf_forms.append((option, lang))
+                            elif option in POSSIBLE_FLAGS_TYPE:
+                                # TODO schon in der Sprache vorhanden überprüfen
+                                gf_forms.append((long_option.strip(), lang))
                                 lang = ""
+                                current_option = option
+                                long_option = ""
+                            else:
+                                long_option += " " + option
+                        elif current_option == "-constr":
+                            if lang == "":
+                                lang = option
+                            else:
+                                # TODO schon in der Sprache vorhanden überprüfen
+                                constructor.append((option, lang))
                                 current_option = ""
+                                lang = ""
                         else:
-                            raise RuntimeError("unknown flag or false flag usage")
+                            raise RuntimeError("unknown flag or false flag usage\n")
+
+                    if long_option != "":
+                        if current_option == "-l" and lang != "":
+                            gf_forms.append((long_option.strip(), lang))
+                            current_option = ""
+                            lang = ""
+                            long_option = ""
+                        else:  # Das sollte nie erreicht werden.
+                            raise RuntimeError("Something went wrong\n")
+
+                    if current_option != "":
+                        raise RuntimeError("unknown flag or false flag usage\n")
 
                     for type_defintion in self.type_def_list:
                         if name_type == type_defintion.name.single_type:
-                            raise RuntimeError(f"{name_type} already defined")
+                            raise RuntimeError(f"{name_type} already defined\n")
                     type_ = Type(single_type=name_type)
-                    type_defintion = Type_Definition(name=type_, mmt_form=type_name, gf_forms=gf_forms)
+                    type_defintion = Type_Definition(
+                        name=type_,
+                        mmt_form=type_name,
+                        gf_forms=gf_forms,
+                        constructor=constructor,
+                    )
                     self.type_def_list.append(type_defintion)
             else:
                 name, full_types = line.split(":")
@@ -195,40 +230,73 @@ class LexiconParser(object):
                     line_type_list.append(Type(single_type=type_str.strip()))
 
                 # der letzte Typ + mögliche optionen
-                type_and_ending = shlex.split(line_type[-1])
+                type_and_ending = line_type[-1].split()
                 line_type_list.append(Type(single_type=type_and_ending[0].strip()))
 
                 options = type_and_ending[1:]
                 other_names: list[tuple[str, str]] = []
                 lang = ""
-                special_case = ""
-                current_option = ""  # TODO auslagern in eine eigene Methode
+                to_add = ""
+                current_option = ""
+                long_option = ""
                 for option in options:
                     if current_option == "":
                         current_option = option
-                    elif current_option == "-l":  # l for language
+                    elif current_option == "-l":
                         if lang == "":
                             lang = option
                             result = self.lang_handle(lang, name)
                             if not result.success:
                                 raise RuntimeError(result.logs)
                         else:
-                            # Eng will always be added at the end (as default)
-                            if lang != "Eng":
-                                other_names.append((option, lang))
-                            lang = ""
-                            current_option = ""
-                    elif current_option == "-sc":  # sc for special_case
-                        if special_case != "":
-                            raise RuntimeError(
-                                f"special case of {name}" + "already set"
-                            )
-                        special_case = option
-                        current_option = ""
+                            if option in POSSIBLE_FLAGS_WORD:
+                                if lang != "Eng":
+                                    other_names.append((long_option.strip(), lang))
+                                else:
+                                    if to_add != "":
+                                        raise RuntimeError(
+                                            "special case of" + f" {name} already set\n"
+                                        )
+                                    to_add = long_option
+                                lang = ""
+                                long_option = ""
+                                current_option = option
+                            else:
+                                long_option += " " + option
+                    elif current_option == "-add":
+                        if to_add != "":
+                            raise RuntimeError(f"special case of {name} already set\n")
+                        if option in POSSIBLE_FLAGS_WORD:
+                            to_add = long_option
+                            current_option = option
+                            long_option = ""
+                        else:
+                            long_option += " " + option
                     else:
-                        raise RuntimeError("unknown flag or false flag usage")
+                        raise RuntimeError("unknown flag or false flag usage\n")
+
+                if long_option != "":
+                    if current_option == "-l":
+                        if lang != "Eng":
+                            other_names.append((long_option.strip(), lang))
+                        else:
+                            if to_add != "":
+                                raise RuntimeError(
+                                    "special case of" + f" {name} already set\n"
+                                )
+                            to_add = long_option
+                        lang = ""
+                        long_option = ""
+                        current_option = ""
+                    elif current_option == "-add":
+                        if to_add != "":
+                            raise RuntimeError(f"special case of {name} already set\n")
+                        to_add = long_option
+                        long_option = ""
+                        current_option = ""
+
                 if current_option != "":
-                    raise RuntimeError(f"{current_option} flag set but not used")
+                    raise RuntimeError(f"{current_option} flag set but not used\n")
 
                 already_in_list = False
                 for defi in self.definition_list:
@@ -237,7 +305,7 @@ class LexiconParser(object):
                         if defi.type_ != line_type_list:
                             raise RuntimeError(
                                 f"{defi.name} already defined"
-                                + " with a different type"
+                                + " with a different type\n"
                             )
                         defi.other_names += other_names
                 if not already_in_list:
@@ -246,7 +314,7 @@ class LexiconParser(object):
                             name=name,
                             type_=line_type_list,
                             other_names=other_names,
-                            to_add=special_case,
+                            to_add=to_add,
                         )
                     )
 
@@ -258,24 +326,26 @@ class LexiconParser(object):
         line_array = shlex.split(line)
         import_file_name = line_array[1]
         ending = import_file_name.split(".")[-1]
+        if ending == import_file_name:  # In this case it is a MMT file with no ending
+            ending = ""
         lexicon_dir_path = os.path.dirname(self.lexicon_path)
         import_file_path = os.path.join(lexicon_dir_path, import_file_name)
 
-        # Sprachen hinzufügen
-        langs: list[str] = []
-        current_option = ""
-        for option in line_array[2:]:
-            if current_option == "":
-                current_option = option
-            elif current_option == "-l":
-                current_option = ""
-                langs.append(option)
-
-        if langs == []:
-            langs.append("Eng")
-
         # den Import in die Liste hinzufügen
         if ending == "gf":
+            # Sprachen hinzufügen
+            langs: list[str] = []
+            current_option = ""
+            for option in line_array[2:]:
+                if current_option == "":
+                    current_option = option
+                elif current_option == "-l":
+                    current_option = ""
+                    langs.append(option)
+
+            if langs == []:
+                langs.append("Eng")
+
             # Überprüfung ob es sich bei der gf Datei um ein resource handelt
             with open(import_file_path, "r") as import_file:
                 file_r = parsing.identify_file(import_file.read())
@@ -288,34 +358,40 @@ class LexiconParser(object):
                                 lang=lang,
                             )
                             self.import_files.append(importer)
+                    elif file_r.value[0] == "gf-abstract":
+                        importer = Importer(
+                            link=import_file_path,
+                            format_=Format.GF_ABSTRACT,
+                        )
+                        self.import_files.append(importer)
+                        self.create_cat = False
                     else:
                         return Result(
                             False,
                             None,
-                            f"{import_file_name} is not a gf-resource file "
-                            + "or a mmt file",
+                            f"{import_file_name} is not a abstract or resource file\n",
                         )
-        elif ending == "mmt":
-            with open(import_file_path, "r") as import_file:
-                file_r = parsing.identify_file(import_file.read())
-                if file_r.success:
-                    if file_r.value[0] == "mmt-view":
-                        importer = Importer(
-                            link=import_file_path, format_=Format.MMT_VIEW
-                        )
-                        self.import_files.append(importer)
-                    elif "mmt" in file_r.value[0]:
-                        importer = Importer(
-                            link=import_file_path, format_=Format.MMT_TYPE
-                        )
-                        self.import_files.append(importer)
-                    else:
-                        return Result(
-                            False,
-                            None,
-                            f"{import_file_name} is not a gf-resource file "
-                            + "or a mmt file",
-                        )
+        elif ending == "":  # MMT Dateien werden ohne Endung Angegeben
+            # MMT Dateien werden nicht überprüft. Stattdesen wird mithilfe einer Flag
+            # angegeben wohin der import gehen soll.
+            if len(line_array) != 3:
+                return Result(False, None, f"Wrong argument number: Error in {line}\n")
+            if line_array[2] == "-theory":
+                importer = Importer(link=import_file_name, format_=Format.MMT_TYPE)
+                self.import_files.append(importer)
+            elif line_array[2] == "-view":
+                importer = Importer(link=import_file_name, format_=Format.MMT_VIEW)
+                self.import_files.append(importer)
+            else:
+                return Result(
+                    False, None, f"{line_array[2]} have to be -theory or -view\n"
+                )
+        else:
+            return Result(
+                False,
+                None,
+                f"{import_file_name} is not a gf or a mmt file\n",
+            )
         return Result(True, "\n")
 
     def lang_handle(self, lang: str, name: str) -> Result[None]:
@@ -332,7 +408,29 @@ class LexiconParser(object):
             self.languages.append(lang)
         return Result(True)
 
-    def create_gf_abstract(self) -> Result[str]:
+    def create_gf_abstract_cat(self) -> Result[str]:
+        """
+        Erstellst die Datei GF abstract, die nur den cat Teil beinhaltet,
+        mit dem {self.lexicon_name}Cat.gf als Namen
+        """
+        file_ending = "Cat.gf"
+        auto_comm_gf = "-- This is auto-generated. Pls do not modify.\n"
+        write_name: str = os.path.join(self.cwd, self.lexicon_name + file_ending)
+        if self.file_check(write_name, auto_comm_gf):
+            with open(write_name, "w", encoding="UTF-8") as gfabsc:
+                gfabsc.write(auto_comm_gf)
+                gfabsc.write(f"abstract {self.lexicon_name}Cat = " + "{\n")
+
+                # die vorhandenen Typen
+                gfabsc.write("\tcat\n")
+                for type_defintion in self.type_def_list:
+                    gfabsc.write(f"\t\t{type_defintion.name.single_type};\n")
+
+                gfabsc.write("}")
+            return Result(True, file_ending)
+        return Result(False, None, f"{write_name} already exists")
+
+    def create_gf_abstract_fun(self) -> Result[str]:
         """
         Erstellst die Datei GF abstract mit dem {self.lexicon_name}.gf als Namen
         """
@@ -342,12 +440,24 @@ class LexiconParser(object):
         if self.file_check(write_name, auto_comm_gf):
             with open(write_name, "w", encoding="UTF-8") as gfabs:
                 gfabs.write(auto_comm_gf)
-                gfabs.write(f"abstract {self.lexicon_name} = " + "{\n")
-
-                # die vorhandenen Typen
-                gfabs.write("\tcat\n")
-                for type_defintion in self.type_def_list:
-                    gfabs.write(f"\t\t{type_defintion.name.single_type};\n")
+                if self.create_cat:
+                    gfabs.write(
+                        f"abstract {self.lexicon_name} = "
+                        + f"{self.lexicon_name}Cat ** "
+                        + "{\n"
+                    )
+                else:
+                    gf_abstract_cats = ""
+                    for importer in self.import_files:
+                        if importer.format_ == Format.GF_ABSTRACT:
+                            import_name = os.path.basename(importer.link[:-3])
+                            gf_abstract_cats += import_name + ", "
+                    gf_abstract_cats = gf_abstract_cats[:-2]
+                    gfabs.write(
+                        f"abstract {self.lexicon_name} = "
+                        + f"{gf_abstract_cats} ** "
+                        + "{\n"
+                    )
 
                 gfabs.write("\tfun\n")
                 for definition in self.definition_list:
@@ -360,7 +470,7 @@ class LexiconParser(object):
 
                 gfabs.write("}")
             return Result(True, file_ending)
-        return Result(False, None, f"{write_name} already exists")
+        return Result(False, None, f"{write_name} already exists\n")
 
     def create_gf_concrete(self, language: str) -> Result[str]:
         """
@@ -391,7 +501,7 @@ class LexiconParser(object):
                     opened_resources = opened_resources[:-2]
                     gfcon.write(
                         f"concrete {self.lexicon_name}{language}"
-                        + f" of {self.lexicon_name} ="
+                        + f" of {self.lexicon_name} = "
                         + f"open {opened_resources} in "
                         + "{\n"
                     )
@@ -402,15 +512,15 @@ class LexiconParser(object):
                         + "{\n"
                     )
 
-                # TODO anpassen, sodass hier sonderfälle und Sprachen
-                # akzeptiert werden.
                 # default Fall: Str
                 gfcon.write("\tlincat\n")
                 for type_defintion in self.type_def_list:
                     written: bool = False
                     for form, lang in type_defintion.gf_forms:
                         if lang == language:
-                            gfcon.write(f"\t\t{type_defintion.name.single_type} = {form};\n")
+                            gfcon.write(
+                                f"\t\t{type_defintion.name.single_type} = {form};\n"
+                            )
                             written = True
                             break
                     if not written:  # default
@@ -419,6 +529,16 @@ class LexiconParser(object):
                 gfcon.write("\tlin\n")
                 for definition in self.definition_list:
                     if len(definition.type_) == 1:
+                        # TODO mögliche mk<Type> Begriff Ersetzung
+                        mk_string = f"mk{definition.type_[0].single_type}"
+                        for type_definition in self.type_def_list:
+                            if type_definition.name == definition.type_[0]:
+                                for constr, lang in type_definition.constructor:
+                                    if lang == language:
+                                        mk_string = constr
+                                        break
+                                break
+                        # Sprachen und Zusätze
                         input_name = f'"{definition.name}"'
                         if language == "Eng" and definition.to_add != "":
                             input_name += " " + definition.to_add
@@ -429,14 +549,12 @@ class LexiconParser(object):
                                     break
                         # nur Wörter der Form "Peter : Name"
                         gfcon.write(
-                            f"\t\t{definition.name} = "
-                            + f"mk{definition.type_[0].single_type} "
-                            + f'{input_name};\n'
+                            f"\t\t{definition.name} = " + f"{mk_string} {input_name};\n"
                         )
 
                 gfcon.write("}")
             return Result(True, file_ending)
-        return Result(False, None, f"{write_name} already exists")
+        return Result(False, None, f"{write_name} already exists\n")
 
     def create_mmt_semantics(self) -> Result[str]:
         """
@@ -456,17 +574,14 @@ class LexiconParser(object):
 
                 for importer in self.import_files:
                     if importer.format_ == Format.MMT_TYPE:
-                        import_name = os.path.basename(importer.link[:-4])
-                        mmtsem.write(f"\tinclude ?{import_name} ❙\n")
+                        mmtsem.write(f"\tinclude {importer.link} ❙\n")
 
                 for definition in self.definition_list:
                     mmt_definition_type: str = ""
-                    for type_defintion in self.type_def_list:
-                        if type_defintion.name == definition.type_[0]:
-                            mmt_definition_type = type_defintion.mmt_form
-                    mmtsem.write(
-                        f"\t{definition.name} :" + f" {mmt_definition_type} ❙\n"
-                    )
+                    for type_definition in self.type_def_list:
+                        if type_definition.name == definition.type_[0]:
+                            mmt_definition_type = type_definition.mmt_form
+                    mmtsem.write(f"\t{definition.name} : {mmt_definition_type} ❙\n")
                 mmtsem.write("❚")
             return Result(True, file_ending)
         return Result(False, None, f"{write_name} already exists")
@@ -496,13 +611,16 @@ class LexiconParser(object):
 
                 for importer in self.import_files:
                     if importer.format_ == Format.MMT_VIEW:
-                        mmtsemcon.write(f"\tinclude ?{importer.link[:-4]} ❙\n")
+                        mmtsemcon.write(f"\tinclude {importer.link} ❙\n")
 
-                for type_defintion in self.type_def_list:
-                    mmtsemcon.write(f"\t{type_defintion.name.single_type} ="
+                # Falls ein abstract gf cat gegeben wird, dürfen die Type Defs
+                # nicht nochmal in den view, da dies dann gegeben sein müssen
+                if self.create_cat:
+                    for type_defintion in self.type_def_list:
+                        mmtsemcon.write(
+                            f"\t{type_defintion.name.single_type} ="
                             + f" {type_defintion.mmt_form} ❙\n"
-                            )
-                    pass
+                        )
 
                 for definition in self.definition_list:
                     if len(definition.type_) == 1:
@@ -510,7 +628,7 @@ class LexiconParser(object):
 
                 mmtsemcon.write("❚")
             return Result(True, file_ending)
-        return Result(False, None, f"{write_name} already exists")
+        return Result(False, None, f"{write_name} already exists\n")
 
     def file_check(self, filename: str, auto_gen_text: str) -> bool:
         """
@@ -533,7 +651,16 @@ class LexiconParser(object):
         logs: list[str] = []
         success: bool = True
         file_names: list[str] = []
-        result = self.create_gf_abstract()
+
+        if self.create_cat:  # Nur erstellen wenn kein gf abstract cat gegeben wird.
+            result = self.create_gf_abstract_cat()
+            if result.success:
+                file_names.append(result.value)
+            else:
+                logs.append(result.logs)
+                success = False
+
+        result = self.create_gf_abstract_fun()
         if result.success:
             file_names.append(result.value)
         else:
@@ -556,6 +683,7 @@ class LexiconParser(object):
         logs: list[str] = []
         success: bool = True
         file_names: list[str] = []
+
         result = self.create_mmt_semantics()
         if result.success:
             file_names.append(result.value)
@@ -578,6 +706,7 @@ class LexiconParser(object):
         logs: list[str] = []
         success: bool = True
         file_names: list[str] = []
+
         result = self.create_gf()
         file_names += result.value
         logs.append(result.logs)
