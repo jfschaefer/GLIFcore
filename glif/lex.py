@@ -65,6 +65,7 @@ class Format(Enum):
 
     GF_ABSTRACT = auto()
     GF_RESOURCE = auto()
+    GF_CONCRETE = auto()
     MMT_TYPE = auto()
     MMT_VIEW = auto()
 
@@ -365,6 +366,14 @@ class LexiconParser(object):
                         )
                         self.import_files.append(importer)
                         self.create_cat = False
+                    elif file_r.value[0] == "gf-concrete":
+                        for lang in langs:
+                            importer = Importer(
+                                link=import_file_path,
+                                format_=Format.GF_CONCRETE,
+                                lang=lang,
+                            )
+                            self.import_files.append(importer)
                     else:
                         return Result(
                             False,
@@ -485,12 +494,17 @@ class LexiconParser(object):
                 gfcon.write(auto_comm_eng)
 
                 open_needed: bool = False
+                extend_needed: bool = False
                 for importer in self.import_files:
                     if importer.format_ == Format.GF_RESOURCE:
                         if importer.lang == language:
                             open_needed = True
-                            break
 
+                    elif importer.format_ == Format.GF_CONCRETE:
+                        if importer.lang == language:
+                            extend_needed = True
+
+                open_string = ""
                 if open_needed:
                     opened_resources = ""
                     for importer in self.import_files:
@@ -499,32 +513,44 @@ class LexiconParser(object):
                                 import_name = os.path.basename(importer.link[:-3])
                                 opened_resources += import_name + ", "
                     opened_resources = opened_resources[:-2]
-                    gfcon.write(
-                        f"concrete {self.lexicon_name}{language}"
-                        + f" of {self.lexicon_name} = "
-                        + f"open {opened_resources} in "
-                        + "{\n"
-                    )
-                else:
-                    gfcon.write(
-                        f"concrete {self.lexicon_name}{language}"
-                        + f" of {self.lexicon_name} ="
-                        + "{\n"
-                    )
+                    open_string = f"open {opened_resources} in "
+
+                extend_string = ""
+                if extend_needed:
+                    extends = ""
+                    for importer in self.import_files:
+                        if importer.format_ == Format.GF_CONCRETE:
+                            if importer.lang == language:
+                                import_name = os.path.basename(importer.link[:-3])
+                                extends += import_name + ", "
+                    extends = extends[:-2]
+                    extend_string = f"{extends} ** "
+
+                gfcon.write(
+                    f"concrete {self.lexicon_name}{language}"
+                    + f" of {self.lexicon_name} = "
+                    + extend_string
+                    + open_string
+                    + "{\n"
+                )
 
                 # default Fall: Str
-                gfcon.write("\tlincat\n")
-                for type_defintion in self.type_def_list:
-                    written: bool = False
-                    for form, lang in type_defintion.gf_forms:
-                        if lang == language:
+                # Falls concrete importiert wird, wird der lincat Teil übersprungen
+                if not extend_needed:
+                    gfcon.write("\tlincat\n")
+                    for type_defintion in self.type_def_list:
+                        written: bool = False
+                        for form, lang in type_defintion.gf_forms:
+                            if lang == language:
+                                gfcon.write(
+                                    f"\t\t{type_defintion.name.single_type} = {form};\n"
+                                )
+                                written = True
+                                break
+                        if not written:  # default
                             gfcon.write(
-                                f"\t\t{type_defintion.name.single_type} = {form};\n"
+                                f"\t\t{type_defintion.name.single_type} = Str;\n"
                             )
-                            written = True
-                            break
-                    if not written:  # default
-                        gfcon.write(f"\t\t{type_defintion.name.single_type} = Str;\n")
 
                 gfcon.write("\tlin\n")
                 for definition in self.definition_list:
