@@ -9,8 +9,8 @@ namespace glif {
     type mkItem int -> int -> (option string) -> (option AstType) -> (option LogType) -> item AstType LogType.
     type getId (item AstType LogType) -> int -> prop.
     getId (mkItem I _ _ _ _) I.
-    type getSenteceId (item AstType LogType) -> int -> prop.
-    getSenteceId (mkItem _ I _ _ _) I.
+    type getSentenceId (item AstType LogType) -> int -> prop.
+    getSentenceId (mkItem _ I _ _ _) I.
     type getStr (item AstType LogType) -> string -> prop.
     getStr (mkItem _ _ (some S) _ _) S.
     type getStrOpt (item AstType LogType) -> (option string) -> prop.
@@ -72,4 +72,8 @@ namespace glif {
     type apply_to_item_actual (item A L -> prop) -> list (item A L) -> prop.
     apply_to_item_actual F [Item] :- !, F Item.
     apply_to_item_actual _ _ :- print "Internal error: multiple items sent to glif.apply_to_item", fail.
+    % for multiple items (-together flag)
+    type apply_to_items (list (item A L) -> prop) -> list String -> prop.
+    apply_to_items F _args :- readitems Items, F Items.
+    apply_to_items _ _ :- print "Query failed".
 }
