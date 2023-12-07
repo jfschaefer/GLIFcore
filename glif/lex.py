@@ -1,7 +1,7 @@
 """
    parsing Lex Dateien
 """
-
+import dataclasses
 import os.path
 import shlex
 
@@ -9,7 +9,7 @@ from . import parsing
 from .utils import Result
 
 from enum import auto, Enum
-from pydantic import BaseModel
+# from pydantic import BaseModel
 
 # from lexicon.data_classes import Format
 # from lexicon.data_classes import Importer
@@ -22,7 +22,8 @@ POSSIBLE_FLAGS_WORD = ["-l", "-add"]
 POSSIBLE_FLAGS_TYPE = ["-l", "-constr"]
 
 
-class Type(BaseModel):
+@dataclasses.dataclass
+class Type:
     """
     Einzelne simple Typ-Definitionen
     """
@@ -30,7 +31,8 @@ class Type(BaseModel):
     single_type: str
 
 
-class Type_Definition(BaseModel):
+@dataclasses.dataclass
+class Type_Definition:
     """
     Type Definitionen mit MMT Form + Sprache und GF Sonderformen
     gf_forms -> tuple von (form, lang)
@@ -38,11 +40,12 @@ class Type_Definition(BaseModel):
 
     name: Type
     mmt_form: str
-    gf_forms: list[tuple[str, str]] = []
-    constructor: list[tuple[str, str]] = []
+    gf_forms: list[tuple[str, str]] = dataclasses.field(default_factory=list)
+    constructor: list[tuple[str, str]] = dataclasses.field(default_factory=list)
 
 
-class Definition(BaseModel):
+@dataclasses.dataclass
+class Definition:
     """
     Die Definition eines Objektes.
     name: ist der Name des zu definierten Objekts und gleichzeitig die
@@ -54,7 +57,7 @@ class Definition(BaseModel):
 
     name: str
     type_: list[Type]
-    other_names: list[tuple[str, str]] = []  # tuples of (name, lang)
+    other_names: list[tuple[str, str]] = dataclasses.field(default_factory=list)  # tuples of (name, lang)
     to_add: str = ""
 
 
@@ -70,7 +73,8 @@ class Format(Enum):
     MMT_VIEW = auto()
 
 
-class Importer(BaseModel):
+@dataclasses.dataclass
+class Importer:
     """
     Ein konkreter Import. Hierfür wird der Link mit dem
     entsprechenden Format abgespeichert.
