@@ -308,36 +308,38 @@ class Glif(glif_abc.GlifABC):
         return r
 
     def import_lex_file(self, filename: str) -> Result[None]:
-        mmt_result = self.get_mmt()
-        if not mmt_result.success:
-            return Result(False, logs=mmt_result.logs)
-        mmt = mmt_result.value
+        # mmt_result = self.get_mmt()
+        # if not mmt_result.success:
+        #     return Result(False, logs=mmt_result.logs)
+        # mmt = mmt_result.value
 
         archive_result = self.get_archive_subdir()
         if not archive_result.success:
             return Result(False, logs=archive_result.logs)
+
+        assert archive_result.value
         archive, subdir = archive_result.value
 
         lexicon_path = os.path.join(self._cwd, filename)
 
         # creating GF and MMT files out of the lex file
-        lex_parser = LexiconParser(lexicon_path, archive=archive, subdir=subdir, cwd=self._cwd)
+        lex_parser = LexiconParser(lexicon_path, archive=archive, subdir=subdir, cwd=self._cwd)  # type: ignore
         result_create = lex_parser.create_all()
         if not result_create.success:
             print("Some files are not been created")
 
+        assert result_create.value
         created_files = result_create.value
 
         # importing the newly created files
-        import_all_command : str = ""
+        import_all_command: str = ""
         for ending in created_files:
             import_all_command += f'import "{filename[:-4]}{ending}"\n'
 
-        results = self.execute_commands(import_all_command)
+        # results = self.execute_commands(import_all_command)
 
         return Result(True)
         # raise NotImplementedError()
-
 
     def get_gf_shell(self) -> Result[gf.GFShellRaw]:
         if not self._gfshell and self._gfshellFailedLogs is None:
