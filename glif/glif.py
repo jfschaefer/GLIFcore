@@ -308,11 +308,6 @@ class Glif(glif_abc.GlifABC):
         return r
 
     def import_lex_file(self, filename: str) -> Result[None]:
-        # mmt_result = self.get_mmt()
-        # if not mmt_result.success:
-        #     return Result(False, logs=mmt_result.logs)
-        # mmt = mmt_result.value
-
         archive_result = self.get_archive_subdir()
         if not archive_result.success:
             return Result(False, logs=archive_result.logs)
@@ -331,15 +326,23 @@ class Glif(glif_abc.GlifABC):
         assert result_create.value
         created_files = result_create.value
 
-        # importing the newly created files
-        import_all_command: str = ""
+        logs: list[str] = []
         for ending in created_files:
-            import_all_command += f'import "{filename[:-4]}{ending}"\n'
-
-        # results = self.execute_commands(import_all_command)
-
-        return Result(True)
-        # raise NotImplementedError()
+            file_name = f'{filename[:-4]}{ending}'
+            if file_name.endswith('.gf'):
+                result = self.import_gf_file(file_name)
+            elif file_name.endswith('.mmt'):
+                result = self.import_mmt_file(file_name)
+            elif file_name.endswith('.elpi'):
+                result = self.import_elpi_file(file_name)
+            else:
+                result = Result(False, logs=f'Unknown file ending: {file_name}')
+            if result.logs:
+                logs.extend(result.logs)
+            if not result.success:
+                return Result(False, logs='\n'.join(logs))
+        logs.append('Successfully imported all files')
+        return Result(True, logs='\n'.join(logs))
 
     def get_gf_shell(self) -> Result[gf.GFShellRaw]:
         if not self._gfshell and self._gfshellFailedLogs is None:

@@ -56,8 +56,8 @@ class Definition:
     """
 
     name: str
-    drop: bool = False  # True: Für alle Sprachen wird <name> nicht verwendet
     type_: list[Type]
+    drop: bool = False  # True: Für alle Sprachen wird <name> nicht verwendet
     other_names: list[tuple[str, str]] = dataclasses.field(default_factory=list)  # tuples of (name, lang)
     to_add: str = ""
 
@@ -637,7 +637,7 @@ class LexiconParser(object):
                         if type_definition.name == definition.type_[0]:
                             mmt_definition_type = type_definition.mmt_form
                     if mmt_definition_type == "":
-                        return(False, None, f"{definition.type_[0]} is not definied in the lexicon")
+                        return (False, None, f"{definition.type_[0]} is not definied in the lexicon")
                     mmtsem.write(f"\t{definition.name} : {mmt_definition_type} ❙\n")
                 mmtsem.write("❚")
             return Result(True, file_ending)
@@ -759,7 +759,7 @@ class LexiconParser(object):
             return Result(True, file_names, "\n".join(logs))
         return Result(False, file_names, "\n".join(logs))
 
-    def create_all(self) -> Result[str]:
+    def create_all(self) -> Result[list[str]]:
         logs: list[str] = []
         success: bool = True
         file_names: list[str] = []
