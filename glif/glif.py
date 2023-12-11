@@ -338,7 +338,7 @@ class Glif(glif_abc.GlifABC):
             else:
                 result = Result(False, logs=f'Unknown file ending: {file_name}')
             if result.logs:
-                logs.extend(result.logs)
+                logs.append(result.logs)
             if not result.success:
                 return Result(False, logs='\n'.join(logs))
         logs.append('Successfully imported all files')
