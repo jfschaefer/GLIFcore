@@ -76,7 +76,7 @@ class GfCommandType(CommandType):
 
 GF_COMMAND_TYPES: list[GfCommandType] = [
     GfCommandType(['parse', 'p'], Repr.SENTENCE, Repr.AST,
-                  error_regex=re.compile(r'The parser failed at token \d+: ".*"')),
+                  error_regex=re.compile(r'(The parser failed at token \d+: ".*")|(The sentence is not complete)')),
     GfCommandType(['put_string', 'ps'], Repr.SENTENCE, Repr.SENTENCE),
     GfCommandType(['put_tree', 'pt'], Repr.AST, Repr.AST),
     # TODO: some sorting arguments probably won't work (e.g. `pt -smallest`)

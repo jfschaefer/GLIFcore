@@ -224,6 +224,8 @@ class Glif(glif_abc.GlifABC):
                 items = cmd.apply(self, items)
             else:
                 items = cmd.execute(self)
+            if items.errors:
+                return Result(False, value=items, logs='\n'.join(items.errors))
             rest = rest.strip()
 
         if not items:
