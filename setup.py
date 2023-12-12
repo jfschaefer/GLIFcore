@@ -2,7 +2,7 @@ import setuptools  # type: ignore
 
 setuptools.setup(
     name='glif',
-    version='0.0.1',
+    version='0.1.0',
     description='GLIF core',
     url='https://github.com/jfschaefer/GLIFcore',
     author='Jan Frederik Schaefer',
@@ -14,7 +14,7 @@ setuptools.setup(
         'simplejson',
     ],
     classifiers=[  # https://pypi.org/pypi?%3Aaction=list_classifiers
-        'Development Status :: 1 - Planning',
+        'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3',
     ],
     include_package_data=True,

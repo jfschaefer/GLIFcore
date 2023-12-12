@@ -19,7 +19,7 @@ def apply_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: l
         file += '.elpi'
     predicate = keyval['predicate']
     new_items = Items([])
-    if 'together' in keys:
+    if 'all' in keys:
         stdin = items_to_stdin(items, with_ast)
         r = runelpi(glif.get_cwd(), file, f'glif.apply_to_items {predicate}', typecheck, stdin)
         if not r.success:
@@ -51,7 +51,7 @@ APPLY_COMMAND_TYPE = GlifCommandType(
         GlifArg(names=['file', 'f'], description='Elpi file', default_value='$DEFAULT'),
         GlifArg(names=['predicate', 'p'], description='Predicate to be applied', default_value='apply'),
         GlifArg(names=['with-AST', 'wA'], description='Include ASTs if available'),
-        GlifArg(names=['together', 't'], description='Pass all items at once to the predicate (as as a list)'),
+        GlifArg(names=['all', 'a'], description='Pass all items at once to the predicate (as as a list)'),
     ],
     description='Applies an ELPI predicate to logical expressions and returns the output',
     apply_fn=apply_helper,

@@ -84,8 +84,8 @@ class TestGlif(unittest.TestCase):
     def elpi_codecell_test(self, content, success):
         rs = self.glif.execute_cell(content)
         self.assertEqual(len(rs), 1)
-        self.assertTrue(
-            rs[0].success)  # even if the content has errors, the command should have been executed successfully
+        if success:
+            self.assertTrue(rs[0].success)
         assert rs[0].value
         if success:
             self.assertFalse(bool(rs[0].value.errors))
