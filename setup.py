@@ -6,7 +6,7 @@ setuptools.setup(
     description='GLIF core',
     url='https://github.com/jfschaefer/GLIFcore',
     author='Jan Frederik Schaefer',
-    packages=setuptools.find_packages(),
+    packages=['glif', 'glif.commands', 'glif.test'],
     # license='BSD 2-clause',  # TODO: License (also in classifiers)
     install_requires=[
         'setuptools>=46',
