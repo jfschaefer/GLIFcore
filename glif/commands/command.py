@@ -1,10 +1,10 @@
 from typing import Callable, Optional
 from abc import ABC, abstractmethod
 
-from ..glif_abc import GlifABC as Glif
+from glif.glif_abc import GlifABC as Glif
 from glif.commands.items import Items
-from ..parsing import parse_basic_command, BasicCommand
-from ..utils import Result
+from glif.parsing import parse_basic_command, BasicCommand
+from glif.utils import Result
 
 
 class CommandTypeABC(ABC):

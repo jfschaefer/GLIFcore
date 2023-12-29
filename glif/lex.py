@@ -5,8 +5,8 @@ import dataclasses
 import os.path
 import shlex
 
-from . import parsing
-from .utils import Result
+from glif import parsing
+from glif.utils import Result
 
 from enum import auto, Enum
 # from pydantic import BaseModel

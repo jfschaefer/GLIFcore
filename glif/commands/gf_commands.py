@@ -1,11 +1,11 @@
 import re
 from typing import Optional
 
-from .command import Command, CommandType
-from ..glif_abc import GlifABC as Glif
+from glif.commands.command import Command, CommandType
+from glif.glif_abc import GlifABC as Glif
 from glif.commands.items import Repr, Items, Item
-from ..parsing import BasicCommand
-from ..utils import Result
+from glif.parsing import BasicCommand
+from glif.utils import Result
 
 
 class GfCommandType(CommandType):

@@ -1,9 +1,9 @@
 from typing import Callable
 
-from ..glif_abc import GlifABC as Glif
+from glif.glif_abc import GlifABC as Glif
 from glif.commands.items import Items, Repr
-from .glif_command import GlifCommandType
-from ..utils import Result
+from glif.commands.glif_command import GlifCommandType
+from glif.utils import Result
 
 
 def import_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str]) -> Items:

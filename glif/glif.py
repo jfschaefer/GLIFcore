@@ -2,14 +2,14 @@ from typing import Optional
 from distutils.spawn import find_executable
 
 from glif import gf, mmt, parsing, utils, glif_abc, stub_gen, elpi
-from .commands import items
+from glif.commands import items
 import glif.commands.command as cmd
 from glif.commands.gf_commands import GF_COMMAND_TYPES
 from glif.commands.glif_command_types import GLIF_COMMAND_TYPES
 import os
-from .lex import LexiconParser
+from glif.lex import LexiconParser
 
-from .utils import Result
+from glif.utils import Result
 
 DEFAULT_ARCHIVE = 'tmpGLIF/default'
 

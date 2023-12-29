@@ -9,8 +9,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Any
 
-from .utils import Result
-from . import mmt, gf
+from glif.utils import Result
+from glif import mmt, gf
 from glif.commands import items
 
 

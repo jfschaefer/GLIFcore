@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from ..glif import Glif
+from glif.glif import Glif
 
 TEST_ARCHIVE = 'tmpGLIF/test'
 

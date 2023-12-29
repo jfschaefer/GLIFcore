@@ -3,7 +3,7 @@ from distutils.spawn import find_executable
 from typing import Any
 
 from glif.commands.items import Items, Repr
-from .glif_command import GlifCommandType, GlifArg
+from glif.commands.glif_command import GlifCommandType, GlifArg
 
 
 def status_helper(glif: Any, keyval: dict[str, str], keys: set[str], mainargs: list[str]) -> Items:

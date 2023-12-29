@@ -1,9 +1,9 @@
 from typing import Optional, Literal
 
-from ..glif_abc import GlifABC as Glif
+from glif.glif_abc import GlifABC as Glif
 from glif.commands.items import Items, Repr
-from .glif_command import GlifCommandType, GlifArg
-from ..elpi import runelpi
+from glif.commands.glif_command import GlifCommandType, GlifArg
+from glif.elpi import runelpi
 
 
 def query_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str], items: Items) -> Items:

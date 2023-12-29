@@ -14,7 +14,7 @@ from mmtpygments.mmt_lexer import MMTLexer
 from pygments.lexer import RegexLexer, words, bygroups
 from pygments.token import Comment, Name, Whitespace, Generic, String, Keyword, Number, Punctuation
 
-from . import commands
+from glif import commands
 
 
 class GFLexer(RegexLexer):

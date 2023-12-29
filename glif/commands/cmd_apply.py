@@ -1,9 +1,9 @@
 from typing import Optional
 
-from ..glif_abc import GlifABC as Glif
+from glif.glif_abc import GlifABC as Glif
 from glif.commands.items import Items, Repr, Item
-from .glif_command import GlifCommandType, GlifArg
-from ..elpi import runelpi, items_to_stdin
+from glif.commands.glif_command import GlifCommandType, GlifArg
+from glif.elpi import runelpi, items_to_stdin
 
 
 def apply_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str], items: Items) -> Items:

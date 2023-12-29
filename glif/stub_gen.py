@@ -7,7 +7,7 @@
 import re
 import os
 from typing import Optional
-from .utils import Result
+from glif.utils import Result
 
 
 def tokenizer(string):

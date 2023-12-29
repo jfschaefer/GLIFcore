@@ -2,7 +2,7 @@ import unittest
 import os
 from distutils.spawn import find_executable
 
-from .. import gf
+from glif import gf
 
 
 class TestShellIO(unittest.TestCase):

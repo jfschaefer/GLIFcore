@@ -1,7 +1,7 @@
-from ..glif_abc import GlifABC as Glif
-from ..utils import indent
+from glif.glif_abc import GlifABC as Glif
+from glif.utils import indent
 from glif.commands.items import Items, Repr
-from .glif_command import GlifCommandType
+from glif.commands.glif_command import GlifCommandType
 
 
 def help_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str]) -> Items:

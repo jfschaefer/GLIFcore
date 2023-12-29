@@ -17,7 +17,7 @@
 
 from typing import Optional
 
-from .utils import Result
+from glif.utils import Result
 
 
 # COMMAND PARSING

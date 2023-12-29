@@ -1,8 +1,8 @@
-from .command import Command, CommandType
-from ..parsing import BasicCommand
+from glif.commands.command import Command, CommandType
+from glif.parsing import BasicCommand
 from glif.commands.items import Items, Repr
-from ..glif_abc import GlifABC as Glif
-from ..utils import Result, indent
+from glif.glif_abc import GlifABC as Glif
+from glif.utils import Result, indent
 
 from typing import Callable, Optional
 

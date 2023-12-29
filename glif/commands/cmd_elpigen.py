@@ -1,8 +1,8 @@
 import os
 
-from ..glif_abc import GlifABC as Glif
+from glif.glif_abc import GlifABC as Glif
 from glif.commands.items import Items, Repr
-from .glif_command import GlifCommandType, GlifArg
+from glif.commands.glif_command import GlifCommandType, GlifArg
 
 
 def elpigen_helper(glif: Glif, keyval: dict[str, str], keys: set[str], mainargs: list[str]) -> Items:
