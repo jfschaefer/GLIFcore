@@ -4,7 +4,7 @@ from distutils.spawn import find_executable
 from typing import Optional, Literal
 
 from glif.commands.items import Repr, Items
-from .utils import Result
+from glif.utils import Result
 
 
 def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdin: str = '',
@@ -31,12 +31,20 @@ def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdi
     assert proc.stderr
     proc.stdin.write(stdin)
     proc.stdin.close()
+    timedout = False
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        timedout = True
     out = proc.stdout.read()
     err = proc.stderr.read()
     proc.stderr.close()
     proc.stdout.close()
     proc.wait()
     # if proc.returncode not in [0,1]:   # Why should 1 be acceptable?
+    if timedout:
+        return Result(False, None, f'ELPI TIMEOUT:\nOUTPUT:\n{out}\nERROR:\n{err}\nCALL:\n{call}')
     if proc.returncode:
         if isjusttypecheck:
             # TODO: better extract type checking errors (they are sometimes in stderr and sometimes in stdout)
@@ -45,7 +53,7 @@ def runelpi(cwd: str, filename: str, command: str, type_check: bool = True, stdi
                           'Typecheck failed:\n' + out + ('\n' + err if not err.endswith('Data.State.Halt') else ''))
         return Result(False, None,
                       'ELPI ERROR: ' + str(
-                          proc.returncode) + '\nOUTPUT:\n' + out + '\nERROR:\n' + err + '\nCALL:\n' + str(call))
+                          proc.returncode) + '\nOUTPUT:\n' + out + '\nERROR:\n' + err + '\nCALL:\n' + str(call) + '\nSTDINT:\n' + stdin)
 
     if filterstderr != 'none':
         lines: list[str] = []
